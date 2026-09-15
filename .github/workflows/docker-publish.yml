@@ -1,0 +1,126 @@
+name: Publicar imagens Docker
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/invoisys-api
+  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/invoisys-web
+
+jobs:
+  tests:
+    name: Restaurar, compilar e testar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restaurar ferramentas locais
+        run: dotnet tool restore
+
+      - name: Restaurar dependências
+        run: dotnet restore InvoiSys.sln
+
+      - name: Compilar solução
+        run: dotnet build InvoiSys.sln --configuration Release --no-restore
+
+      - name: Executar testes unitários
+        run: >
+          dotnet test
+          tests/InvoiSys.UnitTests/InvoiSys.UnitTests.csproj
+          --configuration Release
+          --no-build
+
+  publish-api:
+    name: Publicar imagem da API
+    needs: tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Autenticar no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar metadados da API
+        id: api-metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Construir e publicar API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/InvoiSys.Api/Dockerfile
+          push: true
+          tags: ${{ steps.api-metadata.outputs.tags }}
+          labels: ${{ steps.api-metadata.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  publish-web:
+    name: Publicar imagem Web
+    needs: tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Autenticar no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gerar metadados da Web
+        id: web-metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Construir e publicar Web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/InvoiSys.Web/Dockerfile
+          push: true
+          build-args: |
+            API_BASE_URL=http://localhost:8080/
+          tags: ${{ steps.web-metadata.outputs.tags }}
+          labels: ${{ steps.web-metadata.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
