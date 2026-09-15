@@ -1,0 +1,36 @@
+@page "/coletas"
+@attribute [Authorize]
+@using InvoiSys.Application.Coletas
+@inject IColetasClient ColetasClient
+
+<PageTitle>Coletas - InvoiSys</PageTitle>
+
+<MudText Typo="Typo.h4">Coletas</MudText>
+<MudText Typo="Typo.body1">
+    Histórico das execuções realizadas pela plataforma.
+</MudText>
+
+<MudTable Items="_coletas" Hover="true" Class="mt-4">
+    <HeaderContent>
+        <MudTh>Início</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Documentos</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Início">@context.Inicio.LocalDateTime</MudTd>
+        <MudTd DataLabel="Tipo">@context.TipoExecucao</MudTd>
+        <MudTd DataLabel="Status">@context.Status</MudTd>
+        <MudTd DataLabel="Documentos">@context.QuantidadeDocumentos</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IReadOnlyList<ExecucaoColetaResponse> _coletas = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ColetasClient.ListarAsync();
+        _coletas = response.Dados?.Itens ?? [];
+    }
+}

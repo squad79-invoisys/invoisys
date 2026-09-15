@@ -1,0 +1,30 @@
+@page "/"
+@attribute [Authorize]
+
+<PageTitle>Dashboard - InvoiSys</PageTitle>
+
+<MudText Typo="Typo.h4">Dashboard</MudText>
+<MudText Typo="Typo.body1" Color="Color.Secondary">
+    Resumo das fontes, coletas e documentos.
+</MudText>
+
+<MudGrid Class="mt-4">
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-5">
+            <MudText Typo="Typo.subtitle2">Fontes</MudText>
+            <MudText Typo="Typo.h5">Gerenciamento</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-5">
+            <MudText Typo="Typo.subtitle2">Coletas</MudText>
+            <MudText Typo="Typo.h5">Histórico</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-5">
+            <MudText Typo="Typo.subtitle2">Documentos</MudText>
+            <MudText Typo="Typo.h5">Centralização</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>

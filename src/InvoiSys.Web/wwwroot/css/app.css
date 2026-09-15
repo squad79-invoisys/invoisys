@@ -1,0 +1,13 @@
+html, body {
+    font-family: Inter, Arial, sans-serif;
+    background: #f6f8f7;
+}
+
+.loading {
+    padding: 3rem;
+    text-align: center;
+}
+
+#blazor-error-ui {
+    display: none;
+}

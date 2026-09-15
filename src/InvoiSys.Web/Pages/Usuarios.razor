@@ -1,0 +1,36 @@
+@page "/usuarios"
+@attribute [Authorize(Roles = "Administrador")]
+@using InvoiSys.Application.Common.Authentication
+@inject IUsuariosClient UsuariosClient
+
+<PageTitle>Usuários - InvoiSys</PageTitle>
+
+<MudText Typo="Typo.h4">Usuários</MudText>
+<MudText Typo="Typo.body1">
+    Administração dos acessos internos.
+</MudText>
+
+<MudTable Items="_usuarios" Hover="true" Class="mt-4">
+    <HeaderContent>
+        <MudTh>Nome</MudTh>
+        <MudTh>E-mail</MudTh>
+        <MudTh>Perfis</MudTh>
+        <MudTh>Status</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nome">@context.Nome</MudTd>
+        <MudTd DataLabel="E-mail">@context.Email</MudTd>
+        <MudTd DataLabel="Perfis">@string.Join(", ", context.Perfis)</MudTd>
+        <MudTd DataLabel="Status">@(context.Ativo ? "Ativo" : "Inativo")</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IReadOnlyList<UserSummary> _usuarios = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await UsuariosClient.ListarAsync();
+        _usuarios = response.Dados ?? [];
+    }
+}

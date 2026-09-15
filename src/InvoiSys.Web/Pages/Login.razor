@@ -1,0 +1,75 @@
+@page "/login"
+@using InvoiSys.Web.Contracts
+@inject AuthClient AuthClient
+@inject NavigationManager NavigationManager
+
+<PageTitle>Login - InvoiSys</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Elevation="2" Class="pa-8">
+        <MudText Typo="Typo.h4" GutterBottom="true">InvoiSys</MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">
+            Entre com seu e-mail e senha.
+        </MudText>
+
+        <MudTextField @bind-Value="_model.Email"
+                      Label="E-mail"
+                      InputType="InputType.Email"
+                      Class="mt-4" />
+        <MudTextField @bind-Value="_model.Senha"
+                      Label="Senha"
+                      InputType="InputType.Password"
+                      Class="mt-4" />
+
+        @if (!string.IsNullOrWhiteSpace(_erro))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                @_erro
+            </MudAlert>
+        }
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   Disabled="_carregando"
+                   OnClick="EntrarAsync"
+                   Class="mt-6">
+            Entrar
+        </MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private readonly LoginFormModel _model = new();
+    private string? _erro;
+    private bool _carregando;
+
+    private async Task EntrarAsync()
+    {
+        _carregando = true;
+        _erro = null;
+
+        try
+        {
+            var sucesso = await AuthClient.LoginAsync(
+                _model.Email,
+                _model.Senha);
+
+            if (!sucesso)
+            {
+                _erro = "Não foi possível entrar.";
+                return;
+            }
+
+            NavigationManager.NavigateTo("/");
+        }
+        catch
+        {
+            _erro = "E-mail ou senha inválidos.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+}

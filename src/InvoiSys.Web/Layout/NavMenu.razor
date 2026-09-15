@@ -1,0 +1,20 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All">
+        Dashboard
+    </MudNavLink>
+    <MudNavLink Href="/fontes">
+        Fontes
+    </MudNavLink>
+    <MudNavLink Href="/coletas">
+        Coletas
+    </MudNavLink>
+    <MudNavLink Href="/documentos">
+        Documentos
+    </MudNavLink>
+
+    <AuthorizeView Roles="Administrador">
+        <MudNavLink Href="/usuarios">
+            Usuários
+        </MudNavLink>
+    </AuthorizeView>
+</MudNavMenu>

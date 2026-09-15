@@ -1,0 +1,53 @@
+@page "/fontes"
+@attribute [Authorize]
+@using InvoiSys.Application.Fontes
+@inject IFontesClient FontesClient
+
+<PageTitle>Fontes - InvoiSys</PageTitle>
+
+<MudText Typo="Typo.h4">Fontes</MudText>
+<MudText Typo="Typo.body1">
+    Cadastre e acompanhe as fontes monitoradas pela plataforma.
+</MudText>
+
+@if (_carregando)
+{
+    <MudProgressLinear Indeterminate="true" Class="mt-4" />
+}
+else
+{
+    <MudTable Items="_fontes" Hover="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Nome</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Periodicidade</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nome">@context.Nome</MudTd>
+            <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+            <MudTd DataLabel="Status">@context.Status</MudTd>
+            <MudTd DataLabel="Periodicidade">
+                @context.PeriodicidadeMinutos min
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private IReadOnlyList<FonteResponse> _fontes = [];
+    private bool _carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await FontesClient.ListarAsync();
+            _fontes = response.Dados?.Itens ?? [];
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+}

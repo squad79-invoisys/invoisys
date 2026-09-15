@@ -1,0 +1,36 @@
+@page "/documentos"
+@attribute [Authorize]
+@using InvoiSys.Application.Documentos
+@inject IDocumentosClient DocumentosClient
+
+<PageTitle>Documentos - InvoiSys</PageTitle>
+
+<MudText Typo="Typo.h4">Documentos</MudText>
+<MudText Typo="Typo.body1">
+    Documentos encontrados pelas rotinas de coleta.
+</MudText>
+
+<MudTable Items="_documentos" Hover="true" Class="mt-4">
+    <HeaderContent>
+        <MudTh>Título</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh>Origem</MudTh>
+        <MudTh>Data da coleta</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Título">@context.Titulo</MudTd>
+        <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+        <MudTd DataLabel="Origem">@context.Origem</MudTd>
+        <MudTd DataLabel="Data">@context.DataColeta.LocalDateTime</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private IReadOnlyList<DocumentoResponse> _documentos = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await DocumentosClient.ListarAsync();
+        _documentos = response.Dados?.Itens ?? [];
+    }
+}
