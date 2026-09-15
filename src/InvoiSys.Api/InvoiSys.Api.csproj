@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\InvoiSys.Application\InvoiSys.Application.csproj" />
+    <ProjectReference Include="..\InvoiSys.Collectors\InvoiSys.Collectors.csproj" />
+    <ProjectReference Include="..\InvoiSys.Infrastructure\InvoiSys.Infrastructure.csproj" />
+    <ProjectReference Include="..\InvoiSys.ServiceDefaults\InvoiSys.ServiceDefaults.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" />
+  </ItemGroup>
+</Project>
