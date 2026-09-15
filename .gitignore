@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+*.cache
+*.log
+.env
+.env.*
+!.env.example
+TestResults/
+coverage/
+artifacts/
+*.db
+.DS_Store
