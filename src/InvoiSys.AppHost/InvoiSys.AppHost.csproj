@@ -1,0 +1,12 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.3">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InvoiSys.Api\InvoiSys.Api.csproj" />
+    <ProjectReference Include="..\InvoiSys.Web\InvoiSys.Web.csproj" />
+  </ItemGroup>
+</Project>
