@@ -1,6 +1,8 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.5.3">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>invoisys-apphost-development</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />

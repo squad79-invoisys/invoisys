@@ -139,7 +139,9 @@ public sealed partial class RssAtomCollector(
             ?.Trim();
 
     private static DateTimeOffset? ParseDate(string? value) =>
-        DateTimeOffset.TryParse(value, out var date) ? date : null;
+        DateTimeOffset.TryParse(value, out var date)
+            ? date.ToUniversalTime()
+            : null;
 
     private static string? RemoverHtml(string? value)
     {

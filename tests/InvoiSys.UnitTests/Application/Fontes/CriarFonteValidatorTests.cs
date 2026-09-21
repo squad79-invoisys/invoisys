@@ -17,7 +17,9 @@ public sealed class CriarFonteValidatorTests
             TipoFonte.Rss,
             30);
 
-        var result = await _validator.ValidateAsync(request);
+        var result = await _validator.ValidateAsync(
+            request,
+            TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeTrue();
     }
@@ -31,7 +33,9 @@ public sealed class CriarFonteValidatorTests
             TipoFonte.Rss,
             30);
 
-        var result = await _validator.ValidateAsync(request);
+        var result = await _validator.ValidateAsync(
+            request,
+            TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(error => error.PropertyName == nameof(request.Url));

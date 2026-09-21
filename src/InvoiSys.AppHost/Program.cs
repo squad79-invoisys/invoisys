@@ -15,11 +15,17 @@ var adminPassword = builder.AddParameter(
     "admin-password",
     secret: true);
 
-var postgres = builder
-    .AddPostgres(
-        "postgres",
-        password: postgresPassword)
-    .WithDataVolume("invoisys-postgres");
+var postgres = builder.AddPostgres(
+    "postgres",
+    password: postgresPassword);
+
+if (!string.Equals(
+        builder.Configuration["UsePersistentDatabase"],
+        "false",
+        StringComparison.OrdinalIgnoreCase))
+{
+    postgres.WithDataVolume("invoisys-postgres");
+}
 
 var database = postgres.AddDatabase("invoisys");
 

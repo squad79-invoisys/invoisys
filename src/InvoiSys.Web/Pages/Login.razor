@@ -1,5 +1,7 @@
 @page "/login"
 @using InvoiSys.Web.Contracts
+@using System.Net
+@using Refit
 @inject AuthClient AuthClient
 @inject NavigationManager NavigationManager
 
@@ -63,9 +65,21 @@
 
             NavigationManager.NavigateTo("/");
         }
-        catch
+        catch (ApiException exception)
+            when (exception.StatusCode == HttpStatusCode.Unauthorized)
         {
             _erro = "E-mail ou senha inválidos.";
+        }
+        catch (ApiException exception)
+        {
+            Console.Error.WriteLine(exception);
+            Console.Error.WriteLine(exception.Content);
+            _erro = "Não foi possível acessar a API. Tente novamente.";
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _erro = "Não foi possível acessar a API. Tente novamente.";
         }
         finally
         {

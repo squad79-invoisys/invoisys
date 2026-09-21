@@ -8,10 +8,10 @@ public sealed class ApiSmokeTests
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
-    [Fact(Skip = "Requer Docker e a migration InitialCreate gerada antes da execução.")]
+    [Fact]
     public async Task Api_DeveResponderAlive_QuandoAmbienteEstiverDisponivel()
     {
-        var cancellationToken = CancellationToken.None;
+        var cancellationToken = TestContext.Current.CancellationToken;
         var jwtKey = new string('x', 96);
 
         var builder = await DistributedApplicationTestingBuilder
@@ -20,7 +20,8 @@ public sealed class ApiSmokeTests
                 "Parameters:postgres-password=InvoiSys_Test_123!",
                 $"Parameters:jwt-key={jwtKey}",
                 "Parameters:admin-email=admin@invoisys.test",
-                "Parameters:admin-password=InvoiSys_Admin_123!"
+                "Parameters:admin-password=InvoiSys_Admin_123!",
+                "UsePersistentDatabase=false"
             ],
             cancellationToken);
 

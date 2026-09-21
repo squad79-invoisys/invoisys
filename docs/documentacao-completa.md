@@ -1166,14 +1166,14 @@ dbContext.SaveChangesAsync(...)
 
 Migration é a descrição versionada das mudanças no banco.
 
-No estado atual, a pasta de migration possui apenas um `README.md`: a `InitialCreate` ainda precisa ser gerada.
+No estado atual, a migration `InitialCreate` está versionada em `InvoiSys.Infrastructure/Migrations` e cria as tabelas, chaves e índices da aplicação.
 
-### Criar migration
+### Criar uma nova migration
 
 Na raiz:
 
 ```powershell
-dotnet ef migrations add InitialCreate `
+dotnet ef migrations add NomeDaAlteracao `
   --project src\InvoiSys.Infrastructure `
   --startup-project src\InvoiSys.Api `
   --output-dir Migrations
@@ -2355,13 +2355,16 @@ BootstrapAdmin__Password
 
 No desenvolvimento local, podem guardar segredos sem gravá-los no repositório.
 
-Exemplo:
+O AppHost possui `UserSecretsId` e lê seus quatro parâmetros diretamente de user-secrets. Exemplo:
 
 ```powershell
-dotnet user-secrets set "Jwt:Key" "..."
+dotnet user-secrets set "Parameters:postgres-password" "SUA_SENHA_POSTGRES" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:jwt-key" "SUA_CHAVE_JWT_COM_PELO_MENOS_64_CARACTERES" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:admin-email" "admin@exemplo.local" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:admin-password" "SUA_SENHA_ADMIN" --project src/InvoiSys.AppHost
 ```
 
-Para usar isso, o projeto precisa ter suporte/ID de user-secrets configurado conforme o modo escolhido. Na base atual, o fluxo documentado prioriza variáveis de ambiente e parâmetros do Aspire.
+O perfil de execução do AppHost define `Development`, permitindo carregar esses valores sem colocá-los em arquivos versionados. Para executar API isoladamente, continuam válidas as variáveis de ambiente `ConnectionStrings__invoisys`, `Jwt__Key`, `BootstrapAdmin__Email` e `BootstrapAdmin__Password`.
 
 ## 24.5 Web appsettings
 
@@ -2426,7 +2429,7 @@ No ambiente Development, a API executa:
 dbContext.Database.MigrateAsync();
 ```
 
-Por isso a migration inicial precisa existir antes da execução normal dessa base.
+Como a migration inicial já está versionada, o primeiro início cria/atualiza o schema antes de executar o seed de perfis e administrador.
 
 ## 25.2 Web
 
@@ -2529,7 +2532,7 @@ O projeto de integração usa:
 Aspire.Hosting.Testing
 ```
 
-Existe um smoke test que pretende:
+Existe um smoke test que:
 
 1. subir o AppHost;
 2. subir recursos;
@@ -2537,18 +2540,7 @@ Existe um smoke test que pretende:
 4. chamar `/alive`;
 5. verificar HTTP 200.
 
-No estado atual, esse teste está marcado com:
-
-```csharp
-Skip
-```
-
-porque depende:
-
-- Docker;
-- migration `InitialCreate`.
-
-Portanto, não devemos afirmar que integração está validada neste momento.
+O teste está ativo, usa PostgreSQL efêmero para não compartilhar a senha nem o volume persistente de desenvolvimento e requer Docker disponível. Em 21/09/2026, foi executado com sucesso e validou HTTP 200 em `/alive`.
 
 ## 27.3 xUnit
 
@@ -2790,8 +2782,8 @@ A tabela abaixo considera referências presentes nos `.csproj` atuais.
 | Microsoft.EntityFrameworkCore | 10.0.12 | Infrastructure | ORM |
 | Microsoft.EntityFrameworkCore.Design | 10.0.12 | Infrastructure | tooling/migrations |
 | Microsoft.Extensions.Http | 10.0.12 | Collectors | `AddHttpClient` |
-| Microsoft.Extensions.Http.Resilience | 10.0.12 | ServiceDefaults | resiliência HTTP |
-| Microsoft.Extensions.ServiceDiscovery | 10.0.12 | ServiceDefaults | service discovery |
+| Microsoft.Extensions.Http.Resilience | 10.1.0 | ServiceDefaults | resiliência HTTP |
+| Microsoft.Extensions.ServiceDiscovery | 10.1.0 | ServiceDefaults | service discovery |
 | MudBlazor | 9.10.0 | Web | componentes visuais |
 | Npgsql.EntityFrameworkCore.PostgreSQL | 10.0.3 | Infrastructure | provider PostgreSQL |
 | OpenTelemetry.Exporter.OpenTelemetryProtocol | 1.18.0 | ServiceDefaults | exportação OTLP |
@@ -2801,6 +2793,7 @@ A tabela abaixo considera referências presentes nos `.csproj` atuais.
 | OpenTelemetry.Instrumentation.Runtime | 1.18.0 | ServiceDefaults | métricas runtime |
 | Refit | 15.2.0 | Web, IntegrationTests | clients HTTP por interface |
 | Refit.HttpClientFactory | 15.2.0 | Web | integra Refit com HttpClientFactory |
+| Refit.Reflection | 15.2.0 | Web | metadados por reflexão exigidos pelos clients Refit em runtime |
 | Swashbuckle.AspNetCore | 10.2.3 | Api | Swagger/OpenAPI |
 | Swashbuckle.AspNetCore.Annotations | 10.2.3 | Api | anotações Swagger |
 | Microsoft.NET.Test.Sdk | 18.8.1 | testes | infraestrutura de testes |
@@ -2991,7 +2984,7 @@ Existe tela visual básica, mas ainda não busca indicadores reais.
 
 ### IntegrationTests
 
-Existe estrutura e smoke test, porém o teste está `Skip`.
+O smoke test está ativo e validado. Ele sobe AppHost, PostgreSQL efêmero e API, aguarda o health check e chama `/alive`.
 
 ## 32.3 Ainda não implementado
 
@@ -3006,8 +2999,6 @@ Existe estrutura e smoke test, porém o teste está `Skip`.
 - importação/exportação;
 - monitoramento de disponibilidade das fontes;
 - páginas finais conforme protótipo;
-- migration `InitialCreate` gerada;
-- validação final de build/test neste ambiente.
 
 ---
 
@@ -3067,14 +3058,14 @@ dotnet build InvoiSys.sln
 Exemplo temporário no PowerShell:
 
 ```powershell
-$env:ConnectionStrings__invoisys="Host=localhost;Port=5432;Database=invoisys;Username=postgres;Password=SUA_SENHA"
+$env:INVOISYS_CONNECTION_STRING="Host=localhost;Port=5432;Database=invoisys;Username=postgres;Password=SUA_SENHA"
 $env:Jwt__Key="COLOQUE_AQUI_UMA_CHAVE_FORTE_COM_PELO_MENOS_64_CARACTERES"
 ```
 
-## 33.7 Criar migration
+## 33.7 Criar uma nova migration quando o modelo mudar
 
 ```powershell
-dotnet ef migrations add InitialCreate `
+dotnet ef migrations add NomeDaAlteracao `
   --project src\InvoiSys.Infrastructure `
   --startup-project src\InvoiSys.Api `
   --output-dir Migrations
@@ -3320,7 +3311,7 @@ Consulta tentando criar Fonte.
 >
 > O Aspire AppHost orquestra PostgreSQL, API e Web para desenvolvimento e o ServiceDefaults configura health checks, service discovery, resiliência e OpenTelemetry. Docker Compose é outra forma de subir PostgreSQL, API e Web em containers.
 >
-> O projeto ainda está em fase inicial: temos a arquitetura e vários fluxos backend, mas o frontend ainda é básico, a migration inicial precisa ser gerada, a coleta automática não existe e os testes de integração ainda estão desativados até preparar o ambiente.
+> O projeto ainda está em fase inicial: temos a arquitetura, a migration inicial, fluxos backend e um smoke test de integração ativos, mas o frontend ainda é básico e a coleta automática não existe.
 
 ---
 
@@ -3516,14 +3507,12 @@ agendamento automático
 dashboard real
 change detection funcional
 notificações
-migration InitialCreate gerada
 frontend final
-testes de integração ativos
 ```
 
-## Próximo passo técnico antes do ZIP final
+## Validação executada
 
-A documentação está pronta, mas o ZIP final só deve ser considerado validado depois de:
+Em 21/09/2026, com .NET SDK 10.0.401 e Docker Desktop, foram executados:
 
 ```powershell
 dotnet restore InvoiSys.sln
@@ -3532,10 +3521,4 @@ dotnet test tests\InvoiSys.UnitTests\InvoiSys.UnitTests.csproj
 dotnet test tests\InvoiSys.IntegrationTests\InvoiSys.IntegrationTests.csproj
 ```
 
-Antes do último comando, é necessário:
-
-- gerar a migration `InitialCreate`;
-- ter Docker disponível;
-- remover o `Skip` do smoke test quando o ambiente estiver preparado.
-
-Se build ou teste exigir alteração no código, esta documentação deve ser atualizada junto com a correção.
+O restore foi concluído, o build terminou sem warnings/erros, 10 testes unitários e 1 teste de integração passaram sem skips. O AppHost, PostgreSQL, API e Web também foram validados em execução real, incluindo autenticação, perfis, fontes, coletas RSS/Atom, documentos e usuários.

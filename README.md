@@ -69,9 +69,18 @@ dotnet tool restore
 dotnet restore InvoiSys.sln
 dotnet build InvoiSys.sln
 dotnet test tests/InvoiSys.UnitTests/InvoiSys.UnitTests.csproj
+dotnet test tests/InvoiSys.IntegrationTests/InvoiSys.IntegrationTests.csproj
 ```
 
-Antes da primeira execução com banco, gere a migration `InitialCreate` conforme `docs/execucao.md`.
+A migration `InitialCreate` já faz parte do repositório e a API a aplica automaticamente em Development. Antes de iniciar o AppHost pela primeira vez, configure os parâmetros locais sem gravar segredos no repositório:
+
+```powershell
+dotnet user-secrets set "Parameters:postgres-password" "SUA_SENHA_POSTGRES" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:jwt-key" "SUA_CHAVE_JWT_COM_PELO_MENOS_64_CARACTERES" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:admin-email" "admin@exemplo.local" --project src/InvoiSys.AppHost
+dotnet user-secrets set "Parameters:admin-password" "SUA_SENHA_ADMIN" --project src/InvoiSys.AppHost
+dotnet run --project src/InvoiSys.AppHost
+```
 
 ## Documentação
 
@@ -85,6 +94,6 @@ Antes da primeira execução com banco, gere a migration `InitialCreate` conform
 
 ## Observação sobre testes de integração
 
-O projeto de integração usa `Aspire.Hosting.Testing`. O smoke test inicial está marcado como `Skip` até a criação da migration `InitialCreate`, pois a API aplica migrations e seed ao iniciar em Development.
+O projeto de integração usa `Aspire.Hosting.Testing`. O smoke test sobe AppHost, PostgreSQL efêmero e API, aguarda a API ficar saudável e valida `GET /alive` com HTTP 200. Ele requer Docker Desktop ativo, mas não reutiliza o volume persistente de desenvolvimento.
 
-> Estado atual: a base ainda precisa passar por `dotnet restore`, `dotnet build` e testes em um ambiente com o SDK .NET 10 e Docker antes de ser considerada uma entrega final validada.
+> Estado validado em 21/09/2026: restore concluído, build sem warnings/erros, 10 testes unitários e 1 teste de integração aprovados com .NET SDK 10.0.401 e Docker Desktop.
