@@ -119,6 +119,18 @@ dotnet build
 dotnet test
 ```
 
+**O CI valida todo PR.** Ao abrir ou atualizar um PR para a `develop` ou a
+`main`, o GitHub Actions restaura as dependências, compila em Release e roda os
+testes unitários. Teste falhando ou warning de compilação reprova o check
+*Build e testes*, e o merge fica bloqueado até ele passar. Para reproduzir na
+sua máquina exatamente o que o CI roda:
+
+```bash
+dotnet restore InvoiSys.sln
+dotnet build InvoiSys.sln --configuration Release --no-restore -p:TreatWarningsAsErrors=true
+dotnet test tests/InvoiSys.UnitTests/InvoiSys.UnitTests.csproj --configuration Release --no-build
+```
+
 **Você mesmo aprova e faz o merge.** Não espere revisor. Abrir o PR serve para
 registrar o que entrou, deixar o CI validar e permitir que a liderança acompanhe
 — não para te travar.
@@ -134,8 +146,7 @@ build e os testes de verdade** e confira os critérios de aceite do card.
 - Todo código entra por Pull Request
 - Na `develop`, o próprio autor aprova e faz o merge
 - Na `main`, só a liderança aprova
-- Assim que o CI estiver no ar (KAN-63), o build e os testes passam a ser
-  obrigatórios para o merge
+- O merge só é liberado com o check *Build e testes* do CI aprovado
 
 ## Conflito
 
