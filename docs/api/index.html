@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>InvoiSys API — Documentação</title>
+  <meta name="description" content="Documentação dos endpoints da API da plataforma InvoiSys, gerada a partir da especificação OpenAPI." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui.min.css" />
+  <style>
+    :root {
+      --verde: #00A650;
+      --verde-escuro: #00803e;
+      --texto: #1b1f23;
+      --apoio: #5b6570;
+      --borda: #e3e7eb;
+      --fundo: #ffffff;
+      --fundo-aviso: #f4f7f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      background: var(--verde);
+      color: #fff;
+      padding: 28px 16px;
+    }
+    .interno { max-width: 1140px; margin: 0 auto; }
+    header h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -0.01em; }
+    header p { margin: 0; opacity: 0.92; font-size: 0.95rem; }
+    .aviso {
+      background: var(--fundo-aviso);
+      border-bottom: 1px solid var(--borda);
+      padding: 16px;
+      font-size: 0.9rem;
+      color: var(--apoio);
+      line-height: 1.55;
+    }
+    .aviso strong { color: var(--texto); }
+    .aviso code {
+      background: #fff;
+      border: 1px solid var(--borda);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.85em;
+    }
+    #swagger-ui { max-width: 1140px; margin: 0 auto; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info { margin: 28px 0; }
+    #erro {
+      display: none;
+      max-width: 1140px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid var(--borda);
+      border-left: 4px solid var(--verde);
+      border-radius: 6px;
+      line-height: 1.6;
+    }
+    #erro h2 { margin: 0 0 10px; font-size: 1.1rem; }
+    #erro code { background: var(--fundo-aviso); padding: 2px 6px; border-radius: 4px; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --texto: #e8ecef;
+        --apoio: #9aa4ae;
+        --borda: #2d3238;
+        --fundo: #14171a;
+        --fundo-aviso: #1c2024;
+      }
+      :root:not([data-theme="light"]) .swagger-ui,
+      :root:not([data-theme="light"]) .swagger-ui .info .title,
+      :root:not([data-theme="light"]) .swagger-ui .opblock-tag,
+      :root:not([data-theme="light"]) .swagger-ui .opblock .opblock-summary-path,
+      :root:not([data-theme="light"]) .swagger-ui .opblock-description-wrapper p { color: var(--texto); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="interno">
+      <h1>InvoiSys API</h1>
+      <p>Plataforma de descoberta, coleta e centralização de informações — Squad 79</p>
+    </div>
+  </header>
+
+  <div class="aviso">
+    <div class="interno">
+      <strong>Documentação somente para consulta.</strong>
+      Esta página é estática e não está conectada a nenhum servidor, então o botão de executar
+      requisições fica desativado. Ela descreve rotas, parâmetros, contratos de resposta e códigos
+      de status da API. Para executar chamadas, suba o projeto localmente com
+      <code>dotnet run --project src/InvoiSys.AppHost</code> e acesse o Swagger da API.
+    </div>
+  </div>
+
+  <div id="swagger-ui"></div>
+
+  <div id="erro">
+    <h2>A especificação ainda não foi publicada</h2>
+    <p>
+      O arquivo <code>openapi.json</code> não foi encontrado nesta pasta. Ele é gerado a partir
+      da API e precisa ser commitado em <code>docs/api/openapi.json</code>.
+    </p>
+    <p>O passo a passo está em <code>docs/api/README.md</code>.</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.17.14/swagger-ui-standalone-preset.min.js"></script>
+  <script>
+    fetch('./openapi.json', { cache: 'no-store' })
+      .then(function (resposta) {
+        if (!resposta.ok) throw new Error('status ' + resposta.status);
+        return resposta.json();
+      })
+      .then(function (especificacao) {
+        SwaggerUIBundle({
+          spec: especificacao,
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          docExpansion: 'list',
+          defaultModelsExpandDepth: 1,
+          supportedSubmitMethods: [],
+          presets: [SwaggerUIBundle.presets.apis],
+          layout: 'BaseLayout'
+        });
+      })
+      .catch(function () {
+        document.getElementById('swagger-ui').style.display = 'none';
+        document.getElementById('erro').style.display = 'block';
+      });
+  </script>
+</body>
+</html>
