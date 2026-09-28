@@ -1,36 +1,271 @@
 @page "/coletas"
 @attribute [Authorize]
-@using InvoiSys.Application.Coletas
-@inject IColetasClient ColetasClient
 
 <PageTitle>Coletas - InvoiSys</PageTitle>
 
 <MudText Typo="Typo.h4">Coletas</MudText>
-<MudText Typo="Typo.body1">
-    Histórico das execuções realizadas pela plataforma.
+<MudText Typo="Typo.body1" Color="Color.Secondary">
+    Analise e receba as informações coletadas.
 </MudText>
 
-<MudTable Items="_coletas" Hover="true" Class="mt-4">
-    <HeaderContent>
-        <MudTh>Início</MudTh>
-        <MudTh>Tipo</MudTh>
-        <MudTh>Status</MudTh>
-        <MudTh>Documentos</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Início">@context.Inicio.LocalDateTime</MudTd>
-        <MudTd DataLabel="Tipo">@context.TipoExecucao</MudTd>
-        <MudTd DataLabel="Status">@context.Status</MudTd>
-        <MudTd DataLabel="Documentos">@context.QuantidadeDocumentos</MudTd>
-    </RowTemplate>
-</MudTable>
+@* ===== Filtros ===== *@
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudGrid Class="align-center">
+        <MudItem xs="12" md="3">
+            <MudTextField @bind-Value="_busca" Label="Buscar fonte..." Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Immediate="true" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="string" @bind-Value="_tipo" Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var t in _tipos)
+                {
+                    <MudSelectItem Value="@t">@t</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var s in _statusOpcoes)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            @* Visual apenas: os dados mockados não têm data filtrável *@
+            <MudDatePicker @bind-Date="_ultimaColeta" Label="Última coleta" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="Buscar">
+                Buscar
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@* ===== Cards de resumo ===== *@
+<MudGrid Class="mt-2">
+    @foreach (var c in _resumo)
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex align-center" Outlined="true">
+                <MudAvatar Color="@c.Cor" Variant="Variant.Outlined" Class="mr-4">
+                    <MudIcon Icon="@c.Icone" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.body2">@c.Titulo</MudText>
+                    <MudText Typo="Typo.h4">@c.Valor</MudText>
+                    <MudText Typo="Typo.caption" Color="@c.Cor">@c.Legenda</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@* ===== Tabela + detalhes ===== *@
+<MudGrid Class="mt-2">
+    <MudItem xs="12" lg="8">
+        <MudPaper Outlined="true">
+            <MudTable Items="_filtradas" T="FonteColeta" Hover="true" Dense="true" Elevation="0"
+                      RowsPerPage="10"
+                      OnRowClick="SelecionarLinha"
+                      RowClassFunc="ClasseDaLinha"
+                      RowStyleFunc="@((f, i) => "cursor:pointer")">
+                <HeaderContent>
+                    <MudTh>Fonte</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>URL</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Duração</MudTh>
+                    <MudTh>Última coleta</MudTh>
+                    <MudTh>Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Fonte">
+                        <div class="d-flex align-center">
+                            <MudAvatar Size="Size.Small" Color="@CorDoStatus(context.Status)" Variant="Variant.Outlined" Class="mr-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Small" />
+                            </MudAvatar>
+                            <MudText Typo="Typo.subtitle2">@context.Nome</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+                    <MudTd DataLabel="URL">@context.Url</MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Color="@CorDoStatus(context.Status)" Variant="Variant.Text">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Duração">@context.Duracao</MudTd>
+                    <MudTd DataLabel="Última coleta">@context.UltimaColeta</MudTd>
+                    <MudTd DataLabel="Ações">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Nenhuma fonte encontrada com esses filtros.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 5, 10, 25 }"
+                                   RowsPerPageString="por página"
+                                   InfoFormat="Exibindo {first_item}-{last_item} de {all_items} fontes" />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6">Detalhes da coleta</MudText>
+
+            @if (_selecionada is null)
+            {
+                <MudText Class="mt-4" Color="Color.Secondary">Selecione uma fonte na tabela.</MudText>
+            }
+            else
+            {
+                <div class="d-flex align-center mt-4">
+                    <MudAvatar Color="@CorDoStatus(_selecionada.Status)" Variant="Variant.Outlined" Class="mr-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Sensors" />
+                    </MudAvatar>
+                    <div class="flex-grow-1">
+                        <MudText Typo="Typo.subtitle1">@_selecionada.Nome</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@_selecionada.Tipo</MudText>
+                    </div>
+                    <MudChip T="string" Size="Size.Small" Color="@CorDoStatus(_selecionada.Status)" Variant="Variant.Text">
+                        @_selecionada.Status
+                    </MudChip>
+                </div>
+
+                <MudDivider Class="my-3" />
+
+                @foreach (var (rotulo, valor) in Detalhes(_selecionada))
+                {
+                    <div class="d-flex justify-space-between py-1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@rotulo</MudText>
+                        <MudText Typo="Typo.body2" Align="Align.Right">@valor</MudText>
+                    </div>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4"
+                           StartIcon="@Icons.Material.Filled.Replay">
+                    Reprocessar coleta
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mt-2"
+                           StartIcon="@Icons.Material.Filled.PlayArrow">
+                    Visualizar log
+                </MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* ===== Dica rápida ===== *@
+<MudPaper Class="pa-4 mt-2 d-flex align-center" Outlined="true">
+    <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Class="mr-4">
+        <MudIcon Icon="@Icons.Material.Filled.Lightbulb" />
+    </MudAvatar>
+    <div>
+        <MudText Typo="Typo.subtitle2">Dica rápida</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Use os filtros para encontrar fontes rapidamente e acompanhe o status para evitar interrupções nas coletas.
+        </MudText>
+    </div>
+</MudPaper>
 
 @code {
-    private IReadOnlyList<ExecucaoColetaResponse> _coletas = [];
+    // ===== Modelos (mock) =====
+    private record FonteColeta(
+        string Nome, string Tipo, string Url, string Status, string Duracao, string UltimaColeta,
+        string Inicio, string Timeout, string TempoTotal, string Proxima, string Documentos, string Arquivo);
 
-    protected override async Task OnInitializedAsync()
+    private record CardResumo(string Titulo, string Valor, string Legenda, string Icone, Color Cor);
+
+    // ===== Estado dos filtros =====
+    private string _busca = "";
+    private string _tipo = "Todos";
+    private string _status = "Todos";
+    private DateTime? _ultimaColeta;
+
+    private readonly string[] _tipos = { "Todos", "Web Service", "Portal", "RSS", "API", "Arquivo" };
+    private readonly string[] _statusOpcoes = { "Todos", "Sucesso", "Em andamento", "Erro" };
+
+    // ===== Dados mockados =====
+    private readonly List<CardResumo> _resumo = new()
     {
-        var response = await ColetasClient.ListarAsync();
-        _coletas = response.Dados?.Itens ?? [];
+        new("Total de fontes", "32", "100% do total cadastrado", Icons.Material.Filled.Sensors, Color.Success),
+        new("Fontes coletadas", "24", "75% do total cadastrado", Icons.Material.Filled.Check, Color.Success),
+        new("Fontes com erro", "2", "6% do total cadastrado", Icons.Material.Filled.PriorityHigh, Color.Error),
+        new("Em andamento", "1", "2% do total cadastrado", Icons.Material.Filled.Sync, Color.Info),
+    };
+
+    private readonly List<FonteColeta> _todas = new()
+    {
+        new("SEFAZ - NF-e", "Web Service", "nfe.sefaz.gov.br/ws", "Sucesso", "1 min 27s", "Hoje, 08:24",
+            "23/09/2026, 08:23", "23/09/2026, 08:24", "1min 27s", "Hoje, 08:39", "2.156", "coletas_sefaz_2026-09-23.json"),
+        new("Portal NF-e", "Portal", "nfe.fazenda.gov.br", "Sucesso", "42s", "Hoje, 07:58",
+            "23/09/2026, 07:57", "23/09/2026, 07:58", "42s", "Hoje, 08:13", "873", "coletas_portal_2026-09-23.json"),
+        new("Blog Técnico", "RSS", "blog.invoisys.com.br/rss", "Sucesso", "2min 15s", "Hoje, 07:45",
+            "23/09/2026, 07:43", "23/09/2026, 07:45", "2min 15s", "Hoje, 08:00", "128", "coletas_blog_2026-09-23.json"),
+        new("RSS Fiscal", "RSS", "receita.fazenda.gov.br/rss", "Em andamento", "...", "Ontem, 18:31",
+            "26/09/2026, 18:31", "-", "-", "Hoje, 08:30", "0", "-"),
+        new("API Contingência", "API", "api.invoisys.com.br", "Erro", "...", "Hoje, 07:12",
+            "23/09/2026, 07:12", "23/09/2026, 07:13", "-", "Hoje, 07:27", "0", "-"),
+        new("Junta Comercial - SP", "Arquivo", "jucesp.sp.gov.br/arquivos", "Sucesso", "35s", "Ontem, 16:45",
+            "22/09/2026, 16:44", "22/09/2026, 16:45", "35s", "Hoje, 09:00", "412", "coletas_jucesp_2026-09-22.json"),
+        new("Receita Federal", "Web Service", "api.receita.gov.br", "Sucesso", "1min 45s", "Ontem, 16:33",
+            "22/09/2026, 16:31", "22/09/2026, 16:33", "1min 45s", "Hoje, 09:15", "1.034", "coletas_receita_2026-09-22.json"),
+    };
+
+    private List<FonteColeta> _filtradas = new();
+    private FonteColeta? _selecionada;
+
+    protected override void OnInitialized()
+    {
+        _filtradas = _todas;
+        _selecionada = _todas[0];
     }
+
+    // ===== Ações =====
+    private void Buscar()
+    {
+        _filtradas = _todas
+            .Where(f => string.IsNullOrWhiteSpace(_busca)
+                        || f.Nome.Contains(_busca, StringComparison.OrdinalIgnoreCase))
+            .Where(f => _tipo == "Todos" || f.Tipo == _tipo)
+            .Where(f => _status == "Todos" || f.Status == _status)
+            .ToList();
+
+        if (_selecionada is null || !_filtradas.Contains(_selecionada))
+            _selecionada = _filtradas.FirstOrDefault();
+    }
+
+    private void SelecionarLinha(TableRowClickEventArgs<FonteColeta> args) => _selecionada = args.Item;
+
+    private string ClasseDaLinha(FonteColeta fonte, int indice) =>
+        fonte == _selecionada ? "mud-selected-item" : "";
+
+    // ===== Helpers de exibição =====
+    private static Color CorDoStatus(string status) => status switch
+    {
+        "Sucesso" => Color.Success,
+        "Erro" => Color.Error,
+        "Em andamento" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static IEnumerable<(string Rotulo, string Valor)> Detalhes(FonteColeta f) => new[]
+    {
+        ("Tipo", f.Tipo),
+        ("URL", f.Url),
+        ("Timestamp início", f.Inicio),
+        ("Timeout", f.Timeout),
+        ("Tempo total", f.TempoTotal),
+        ("Próxima execução", f.Proxima),
+        ("Documentos coletados", f.Documentos),
+        ("Arquivo gerado", f.Arquivo),
+    };
 }
