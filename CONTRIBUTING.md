@@ -2,11 +2,20 @@
 
 Guia rápido do fluxo de trabalho no repositório. Leia antes do primeiro commit.
 
+## As duas branches fixas
+
+| Branch | Para que serve |
+| --- | --- |
+| `develop` | Onde o trabalho do dia a dia é integrado. **É daqui que você tira a sua branch e é para cá que o seu Pull Request vai.** |
+| `main` | Só recebe o que já foi aprovado e está estável. É o que a gente demonstra. |
+
+Nenhuma das duas recebe commit direto. Tudo entra por Pull Request.
+
 ## O fluxo, em 6 passos
 
 ```bash
-# 1. Atualize a main
-git checkout main
+# 1. Atualize a develop
+git checkout develop
 git pull
 
 # 2. Crie a branch a partir dela
@@ -19,15 +28,29 @@ git commit -m "feat: adiciona formulário de cadastro de fonte"
 # 4. Suba a branch
 git push -u origin feat/kan-41-cadastrar-fonte
 
-# 5. Abra o Pull Request para a main, mesmo com o trabalho pela metade
+# 5. Abra o Pull Request para a develop, mesmo com o trabalho pela metade
 
 # 6. Depois do merge, apague a branch
-git checkout main && git pull
+git checkout develop && git pull
 git branch -d feat/kan-41-cadastrar-fonte
 ```
 
-Não trabalhamos com `develop` nem `release`. Só `main` e as branches de tarefa.
-Com nove pessoas e prazo curto, camada a mais só gera conflito.
+O erro mais comum é abrir o Pull Request para a `main` por distração. O GitHub
+sugere a branch padrão, então confira o destino antes de criar.
+
+## Da develop para a main
+
+Quem promove é a liderança, não quem fez o card. O caminho é:
+
+1. A `develop` está estável, com build e testes passando
+2. A liderança abre um Pull Request de `develop` para `main`
+3. Depois de aprovado, entra na `main`
+
+Esse passo acontece quando há um conjunto pronto para mostrar — não a cada card.
+
+> Enquanto não existe ambiente de homologação (KAN-65), a `main` faz esse papel:
+> é a versão que a gente considera apresentável. Quando o ambiente existir, este
+> trecho é revisto.
 
 ## Nome da branch
 
@@ -71,6 +94,8 @@ lembra o que era.
 
 ## Pull Request
 
+**O destino é a `develop`.** Sempre.
+
 **Abra cedo.** Não espere terminar. PR aberto pela metade deixa a liderança
 acompanhar e evita descobrir problema grande no fim.
 Se ainda não está pronto, marque como *Draft*.
@@ -90,30 +115,94 @@ dotnet build
 dotnet test
 ```
 
-**Merge é por squash.** O histórico da `main` fica com um commit por card.
+**Merge é por squash.** O histórico da `develop` fica com um commit por card.
 
-## Regras da main
+## Regras das branches
 
-- Ninguém commita direto na `main`
+- Ninguém commita direto na `develop` nem na `main`
 - Todo código entra por Pull Request
 - O PR precisa de aprovação antes do merge
 - Assim que o CI estiver no ar (KAN-63), o build e os testes passam a ser
   obrigatórios para o merge
 
-## Conflito na sua branch
+## Conflito
 
-Atualize com a `main` antes de pedir revisão:
+Conflito não é erro nem sinal de que alguém fez besteira. Acontece quando duas
+pessoas mexem no mesmo trecho do mesmo arquivo. Com nove pessoas na mesma base,
+é rotina.
+
+### Como evitar
+
+**Atualize sua branch com a `develop` todo dia.** Conflito pequeno resolvido hoje
+custa minutos; o mesmo conflito daqui a uma semana custa horas.
 
 ```bash
-git checkout main && git pull
+git checkout develop && git pull
 git checkout sua-branch
-git merge main
-# resolva os conflitos, teste, e só então
+git merge develop
+```
+
+**Mantenha a branch curta.** Card que leva cinco dias acumula cinco dias de
+diferença. Se o card for grande, abra o PR no meio do caminho.
+
+### Como resolver
+
+Quando o `git merge develop` acusa conflito, o git marca o trecho assim:
+
+```
+<<<<<<< HEAD
+o que está na sua branch
+=======
+o que veio da develop
+>>>>>>> develop
+```
+
+Você escolhe o que fica: um dos dois lados, ou uma combinação dos dois. Depois
+apaga as três linhas de marcação — `<<<<<<<`, `=======` e `>>>>>>>`. Elas não
+podem sobrar no arquivo.
+
+No VS Code aparecem os botões *Accept Current*, *Accept Incoming* e
+*Accept Both*. Eles ajudam, mas leia o resultado antes de aceitar: às vezes o
+certo é juntar os dois lados na mão.
+
+Depois de resolver:
+
+```bash
+git add .
+git commit
+dotnet build && dotnet test
 git push
 ```
 
-Se o conflito for grande, chame a pessoa que mexeu no mesmo arquivo. Resolver
-sozinho conflito de código alheio costuma custar mais caro.
+**Só faça o push depois de compilar e testar.** Conflito mal resolvido compila
+errado ou, pior, compila certo e quebra em execução.
+
+### Se der errado no meio
+
+Dá para desfazer e voltar ao estado anterior ao merge:
+
+```bash
+git merge --abort
+```
+
+Nada se perde. Respire e tente de novo.
+
+### Quando chamar alguém
+
+Chame a pessoa que mexeu no mesmo arquivo quando:
+
+- o conflito é em código que você não escreveu
+- são muitos arquivos de uma vez
+- você não entende o que o outro lado estava tentando fazer
+
+Para descobrir quem foi:
+
+```bash
+git log --oneline -5 develop -- caminho/do/arquivo
+```
+
+Resolver sozinho conflito de código alheio costuma custar mais caro que a
+conversa de dois minutos.
 
 ## Dúvidas
 

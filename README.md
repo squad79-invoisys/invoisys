@@ -84,10 +84,12 @@ dotnet run --project src/InvoiSys.AppHost
 
 ## Fluxo de trabalho
 
-Trabalhamos apenas com a `main` e branches de tarefa. Não há `develop` nem `release`.
+Duas branches fixas: `develop`, onde o trabalho do dia a dia é integrado, e `main`, que só recebe o que já está aprovado e estável.
+
+**Sua branch sai da `develop` e seu Pull Request volta para a `develop`.**
 
 ```bash
-git checkout main && git pull
+git checkout develop && git pull
 git checkout -b feat/kan-41-cadastrar-fonte
 ```
 
@@ -95,16 +97,16 @@ git checkout -b feat/kan-41-cadastrar-fonte
 | --- | --- |
 | Branch | `<tipo>/kan-<número>-<descrição>` — `feat/kan-41-cadastrar-fonte` |
 | Commit | [Conventional Commits](https://www.conventionalcommits.org/pt-br/) — `feat: adiciona filtro por status` |
-| Pull Request | Um por card, título `KAN-41: feat: adiciona cadastro de fonte` |
-| Merge | Squash — um commit por card na `main` |
+| Pull Request | Um por card, título `KAN-41: feat: adiciona cadastro de fonte`, destino `develop` |
+| Merge | Squash — um commit por card na `develop` |
 
 Os tipos são `feat`, `fix`, `chore`, `docs`, `test`, `ci` e `refactor`, usados tanto na branch quanto no commit.
 
 **Abra o Pull Request cedo**, mesmo com o trabalho pela metade, marcado como *Draft*. Antes de pedir revisão, rode `dotnet build` e `dotnet test`.
 
-Ninguém commita direto na `main`: todo código entra por Pull Request aprovado.
+A promoção de `develop` para `main` é feita pela liderança, quando há um conjunto estável para demonstrar. Ninguém commita direto em nenhuma das duas.
 
-O passo a passo completo, com resolução de conflito e checklist de revisão, está em [CONTRIBUTING.md](CONTRIBUTING.md).
+Antes de pedir revisão, atualize sua branch: `git merge develop`. O passo a passo completo, incluindo como resolver conflito, está em [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentação
 
