@@ -27,13 +27,10 @@ public sealed partial class RssAtomCollector(
             LoadOptions.None,
             cancellationToken);
 
-        return EhAtom(xml)
+        return FeedDocumentParser.EhAtom(xml)
             ? LerAtom(xml, url)
             : LerRss(xml, url);
     }
-
-    private static bool EhAtom(XDocument document) =>
-        string.Equals(document.Root?.Name.LocalName, "feed", StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<CollectedDocument> LerRss(
         XDocument document,

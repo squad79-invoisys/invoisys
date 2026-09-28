@@ -1,5 +1,7 @@
 using InvoiSys.Application.Common.Collectors;
+using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Collectors.RssAtom;
+using InvoiSys.Collectors.Validation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace InvoiSys.Collectors;
@@ -11,6 +13,12 @@ public static class DependencyInjection
         services.AddHttpClient<RssAtomCollector>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("InvoiSys/1.0");
+        });
+
+        services.AddHttpClient<IFonteUrlValidator, FonteUrlValidator>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("InvoiSys/1.0");
         });
 
