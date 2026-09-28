@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  # Sem filtro de paths: o check é obrigatório para o merge, e um check que
+  # não roda deixa o Pull Request esperando para sempre.
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Este nome é o check exigido na regra de proteção das branches: se mudar
+    # aqui, atualize a regra no GitHub.
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v7
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restaurar dependências
+        run: dotnet restore InvoiSys.sln
+
+      # A base compila sem warnings, então qualquer warning de compilação veio
+      # da alteração e reprova o Pull Request.
+      - name: Compilar em Release
+        run: >
+          dotnet build InvoiSys.sln
+          --configuration Release
+          --no-restore
+          -p:TreatWarningsAsErrors=true
+
+      - name: Executar testes unitários
+        run: >
+          dotnet test
+          tests/InvoiSys.UnitTests/InvoiSys.UnitTests.csproj
+          --configuration Release
+          --no-build

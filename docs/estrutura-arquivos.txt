@@ -1,6 +1,7 @@
 .config/dotnet-tools.json
 .dockerignore
 .env.example
+.github/workflows/ci.yml
 .github/workflows/docker-publish.yml
 .github/workflows/integration-tests.yml
 .gitignore
