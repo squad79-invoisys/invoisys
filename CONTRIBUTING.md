@@ -11,6 +11,9 @@ Guia rápido do fluxo de trabalho no repositório. Leia antes do primeiro commit
 
 Nenhuma das duas recebe commit direto. Tudo entra por Pull Request.
 
+A diferença está em quem aprova: **na `develop`, você mesmo aprova e faz o merge
+do seu PR** — não precisa esperar ninguém. Na `main`, quem aprova é a liderança.
+
 ## O fluxo, em 6 passos
 
 ```bash
@@ -44,7 +47,8 @@ Quem promove é a liderança, não quem fez o card. O caminho é:
 
 1. A `develop` está estável, com build e testes passando
 2. A liderança abre um Pull Request de `develop` para `main`
-3. Depois de aprovado, entra na `main`
+3. **A aprovação é da liderança.** Ninguém mais leva código para a `main`
+4. Depois de aprovado, entra na `main`
 
 Esse passo acontece quando há um conjunto pronto para mostrar — não a cada card.
 
@@ -115,13 +119,21 @@ dotnet build
 dotnet test
 ```
 
+**Você mesmo aprova e faz o merge.** Não espere revisor. Abrir o PR serve para
+registrar o que entrou, deixar o CI validar e permitir que a liderança acompanhe
+— não para te travar.
+
+Isso aumenta a sua responsabilidade: como ninguém vai revisar antes, **rode o
+build e os testes de verdade** e confira os critérios de aceite do card.
+
 **Merge é por squash.** O histórico da `develop` fica com um commit por card.
 
 ## Regras das branches
 
 - Ninguém commita direto na `develop` nem na `main`
 - Todo código entra por Pull Request
-- O PR precisa de aprovação antes do merge
+- Na `develop`, o próprio autor aprova e faz o merge
+- Na `main`, só a liderança aprova
 - Assim que o CI estiver no ar (KAN-63), o build e os testes passam a ser
   obrigatórios para o merge
 
