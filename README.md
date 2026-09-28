@@ -82,8 +82,33 @@ dotnet user-secrets set "Parameters:admin-password" "SUA_SENHA_ADMIN" --project 
 dotnet run --project src/InvoiSys.AppHost
 ```
 
+## Fluxo de trabalho
+
+Trabalhamos apenas com a `main` e branches de tarefa. Não há `develop` nem `release`.
+
+```bash
+git checkout main && git pull
+git checkout -b feat/kan-41-cadastrar-fonte
+```
+
+| Item | Padrão |
+| --- | --- |
+| Branch | `<tipo>/kan-<número>-<descrição>` — `feat/kan-41-cadastrar-fonte` |
+| Commit | [Conventional Commits](https://www.conventionalcommits.org/pt-br/) — `feat: adiciona filtro por status` |
+| Pull Request | Um por card, título `KAN-41: feat: adiciona cadastro de fonte` |
+| Merge | Squash — um commit por card na `main` |
+
+Os tipos são `feat`, `fix`, `chore`, `docs`, `test`, `ci` e `refactor`, usados tanto na branch quanto no commit.
+
+**Abra o Pull Request cedo**, mesmo com o trabalho pela metade, marcado como *Draft*. Antes de pedir revisão, rode `dotnet build` e `dotnet test`.
+
+Ninguém commita direto na `main`: todo código entra por Pull Request aprovado.
+
+O passo a passo completo, com resolução de conflito e checklist de revisão, está em [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Documentação
 
+- [Como contribuir e fluxo de git](CONTRIBUTING.md)
 - [Documentação completa e didática](docs/documentacao-completa.md)
 - [Arquitetura](docs/arquitetura.md)
 - [Autenticação](docs/autenticacao.md)
