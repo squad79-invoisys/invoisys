@@ -102,8 +102,6 @@ git checkout -b feat/kan-41-cadastrar-fonte
 
 Os tipos são `feat`, `fix`, `chore`, `docs`, `test`, `ci` e `refactor`, usados tanto na branch quanto no commit.
 
-**Abra o Pull Request cedo**, mesmo com o trabalho pela metade, marcado como *Draft*.
-
 Na `develop`, **você mesmo aprova e faz o merge do seu PR** — não precisa esperar revisor. Em troca, rode `dotnet build` e `dotnet test` antes, porque ninguém vai revisar depois.
 
 A promoção de `develop` para `main` é feita pela liderança, que é quem aprova esse PR. Ninguém commita direto em nenhuma das duas.
