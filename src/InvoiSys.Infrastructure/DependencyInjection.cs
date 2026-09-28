@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<IFonteRepository, FonteRepository>();
         services.AddScoped<IExecucaoColetaRepository, ExecucaoColetaRepository>();
         services.AddScoped<IDocumentoRepository, DocumentoRepository>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IJwtTokenService, JwtTokenService>();
