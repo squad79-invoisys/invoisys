@@ -5,6 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\InvoiSys.Application\InvoiSys.Application.csproj" />
+    <ProjectReference Include="..\..\src\InvoiSys.Api\InvoiSys.Api.csproj" />
+    <ProjectReference Include="..\..\src\InvoiSys.Collectors\InvoiSys.Collectors.csproj" />
     <ProjectReference Include="..\..\src\InvoiSys.Domain\InvoiSys.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>

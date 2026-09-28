@@ -1,19 +1,21 @@
 using FluentAssertions;
-using InvoiSys.Application.Fontes.CriarFonte;
+using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Domain.Enums;
 
 namespace InvoiSys.UnitTests.Application.Fontes;
 
-public sealed class CriarFonteValidatorTests
+public sealed class AtualizarFonteValidatorTests
 {
-    private readonly CriarFonteValidator _validator = new();
+    private readonly AtualizarFonteValidator _validator = new();
 
-    [Fact]
-    public async Task Validate_DeveSerValido_QuandoRequestForCorreto()
+    [Theory]
+    [InlineData("http://exemplo.com/feed.xml")]
+    [InlineData("https://exemplo.com/feed.xml")]
+    public async Task Validate_DeveAceitarUrlHttpOuHttps(string url)
     {
-        var request = new CriarFonteRequest(
+        var request = new AtualizarFonteRequest(
             "Portal Fiscal",
-            "https://exemplo.com/feed.xml",
+            url,
             TipoFonte.Rss,
             30);
 
@@ -25,9 +27,9 @@ public sealed class CriarFonteValidatorTests
     }
 
     [Fact]
-    public async Task Validate_DeveSerInvalido_QuandoUrlNaoForHttpOuHttps()
+    public async Task Validate_DeveUsarMensagemObrigatoria_QuandoEsquemaNaoForHttp()
     {
-        var request = new CriarFonteRequest(
+        var request = new AtualizarFonteRequest(
             "Portal Fiscal",
             "ftp://exemplo.com/feed.xml",
             TipoFonte.Rss,
@@ -37,7 +39,6 @@ public sealed class CriarFonteValidatorTests
             request,
             TestContext.Current.CancellationToken);
 
-        result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(error =>
             error.PropertyName == nameof(request.Url) &&
             error.ErrorMessage == "A URL deve usar http ou https");

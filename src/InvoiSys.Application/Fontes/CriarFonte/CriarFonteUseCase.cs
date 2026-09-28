@@ -1,6 +1,7 @@
 using FluentValidation;
 using InvoiSys.Application.Common.Abstractions;
 using InvoiSys.Application.Common.Exceptions;
+using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Repositories;
 
@@ -9,6 +10,7 @@ namespace InvoiSys.Application.Fontes.CriarFonte;
 public sealed class CriarFonteUseCase(
     IValidator<CriarFonteRequest> validator,
     ICurrentUser currentUser,
+    IFonteUrlValidator fonteUrlValidator,
     IFonteRepository fonteRepository,
     IUnitOfWork unitOfWork) : ICriarFonteUseCase
 {
@@ -21,9 +23,15 @@ public sealed class CriarFonteUseCase(
         if (currentUser.UsuarioId is not Guid usuarioId)
             throw new UnauthorizedException("Usuário não autenticado.");
 
+        var urlNormalizada = request.Url.Trim();
+        await fonteUrlValidator.ValidarAsync(
+            urlNormalizada,
+            request.Tipo,
+            cancellationToken);
+
         var fonte = new Fonte(
             request.Nome,
-            request.Url,
+            urlNormalizada,
             request.Tipo,
             request.PeriodicidadeMinutos,
             usuarioId);
