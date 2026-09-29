@@ -1,0 +1,16 @@
+.sidebar-content { display:flex; flex-direction:column; height:100%; padding:0 12px; }
+.brand { align-items:center; color:#141c29; display:flex; font-size:24px; font-weight:700; height:64px; padding-left:16px; text-decoration:none; }
+.brand strong { color:#0a9e40; }
+.brand-mark { background:#0a9e40; display:inline-block; height:8px; margin-right:8px; transform:skew(-15deg); width:20px; }
+.main-navigation { margin-top:12px; }
+.main-navigation ::deep .mud-nav-link { border-radius:8px; color:#5e697a; font-size:14px; font-weight:500; height:44px; margin-bottom:10px; padding:0 16px; }
+.main-navigation ::deep .mud-nav-link.active { background:#e0f7e8; color:#0a9e40; font-weight:600; }
+.main-navigation ::deep .mud-nav-link-icon { color:inherit; margin-right:16px; }
+.sidebar-footer { margin-top:auto; padding:0 6px 24px; }
+.help-card { background:#f0faf2; border:1px solid #e3e8ed; border-radius:10px; margin-bottom:22px; padding:16px; }
+.help-card p:first-child { color:#141c29; font-weight:600; margin-bottom:6px; }
+.help-card p:last-child { color:#5e697a; line-height:1.6; }
+.user-card { align-items:center; display:flex; gap:12px; padding:0 10px; }
+.user-initials { color:#0a9e40; font-size:11px; font-weight:700; }
+.user-card p:first-child { color:#141c29; font-size:11px; font-weight:600; }
+.user-card p:last-child { color:#5e697a; font-size:9px; }
