@@ -1,7 +1,11 @@
 html, body {
     font-family: Inter, Arial, sans-serif;
-    background: #f6f8f7;
+    background: #f7fafb;
+    color: #141c29;
+    margin: 0;
 }
+
+*, *::before, *::after { box-sizing: border-box; }
 
 .loading {
     padding: 3rem;
