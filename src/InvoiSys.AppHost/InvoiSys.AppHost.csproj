@@ -1,7 +1,12 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.5.3">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <!-- O bundle do Aspire CLI exige a instalação do CLI em cada máquina. Como o
+         AppHost é a forma padrão de subir o ambiente no time, usamos os pacotes
+         de dashboard e DCP, que vêm pelo próprio restore. ASPIRE010 apenas avisa
+         que alguns recursos novos do Aspire dependem do CLI. -->
+    <AspireUseCliBundle>false</AspireUseCliBundle>
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
     <UserSecretsId>invoisys-apphost-development</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
