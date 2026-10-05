@@ -8,10 +8,20 @@ public static class AppTheme
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#16A34A",      // verde principal (botões, links, ícones ativos)
-            Success = "#16A34A",      // mesmo verde para os chips/status "Sucesso"
-            Info = "#3B82F6",         // azul, mantido para status "Em andamento"
-            Error = "#EF4444",        // vermelho para status "Erro"
+            Primary = "#0a9e40",
+            Success = "#16A34A",
+            Info = "#3B82F6",
+            Error = "#EF4444",
+            Background = "#f7fafb",
+            Surface = "#ffffff",
+            TextPrimary = "#141c29",
+            TextSecondary = "#5e697a",
+            Divider = "#e3e8ed"
+        },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "8px" },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["Inter", "Arial", "sans-serif"] }
         }
     };
 }

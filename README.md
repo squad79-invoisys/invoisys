@@ -82,8 +82,36 @@ dotnet user-secrets set "Parameters:admin-password" "SUA_SENHA_ADMIN" --project 
 dotnet run --project src/InvoiSys.AppHost
 ```
 
+## Fluxo de trabalho
+
+Duas branches fixas: `develop`, onde o trabalho do dia a dia é integrado, e `main`, que só recebe o que já está aprovado e estável.
+
+**Sua branch sai da `develop` e seu Pull Request volta para a `develop`.**
+
+```bash
+git checkout develop && git pull
+git checkout -b feat/kan-41-cadastrar-fonte
+```
+
+| Item | Padrão |
+| --- | --- |
+| Branch | `<tipo>/kan-<número>-<descrição>` — `feat/kan-41-cadastrar-fonte` |
+| Commit | [Conventional Commits](https://www.conventionalcommits.org/pt-br/) — `feat: adiciona filtro por status` |
+| Pull Request | Um por card, título `KAN-41: feat: adiciona cadastro de fonte`, destino `develop` |
+| Merge | Squash — um commit por card na `develop` |
+| CI | Todo PR para `develop` ou `main` compila em Release e roda os testes unitários; teste falhando ou warning de compilação bloqueia o merge |
+
+Os tipos são `feat`, `fix`, `chore`, `docs`, `test`, `ci` e `refactor`, usados tanto na branch quanto no commit.
+
+Na `develop`, **você mesmo aprova e faz o merge do seu PR** — não precisa esperar revisor. Em troca, rode `dotnet build` e `dotnet test` antes, porque ninguém vai revisar depois.
+
+A promoção de `develop` para `main` é feita pela liderança, que é quem aprova esse PR. Ninguém commita direto em nenhuma das duas.
+
+Antes do merge, atualize sua branch com `git merge develop`. O passo a passo completo, incluindo como resolver conflito, está em [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Documentação
 
+- [Como contribuir e fluxo de git](CONTRIBUTING.md)
 - [Documentação completa e didática](docs/documentacao-completa.md)
 - [Arquitetura](docs/arquitetura.md)
 - [Autenticação](docs/autenticacao.md)

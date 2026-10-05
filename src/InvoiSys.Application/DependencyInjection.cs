@@ -5,6 +5,7 @@ using InvoiSys.Application.Autenticacao.Refresh;
 using InvoiSys.Application.Coletas.ConsultarColeta;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
 using InvoiSys.Application.Coletas.ListarColetas;
+using InvoiSys.Application.Dashboard.ObterResumo;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
@@ -38,6 +39,8 @@ public static class DependencyInjection
 
         services.AddScoped<IConsultarDocumentoUseCase, ConsultarDocumentoUseCase>();
         services.AddScoped<IListarDocumentosUseCase, ListarDocumentosUseCase>();
+
+        services.AddScoped<IObterResumoDashboardUseCase, ObterResumoDashboardUseCase>();
 
         services.AddScoped<ILoginUseCase, LoginUseCase>();
         services.AddScoped<IRefreshTokenUseCase, RefreshTokenUseCase>();

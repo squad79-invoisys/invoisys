@@ -113,6 +113,10 @@ public sealed class FontesController(
         StatusCodes.Status200OK,
         "Fonte atualizada com sucesso.",
         typeof(ApiResponse<FonteResponse>))]
+    [SwaggerResponse(
+        StatusCodes.Status400BadRequest,
+        "Dados da fonte inválidos.",
+        typeof(ApiResponse<object>))]
     public async Task<IActionResult> AtualizarAsync(
         Guid id,
         [FromBody] AtualizarFonteRequest request,

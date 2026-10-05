@@ -1,53 +1,209 @@
 @page "/fontes"
-@attribute [Authorize]
+@implements IDisposable
 @using InvoiSys.Application.Fontes
+@using InvoiSys.Domain.Enums
+@using InvoiSys.Web.Components.Fontes
 @inject IFontesClient FontesClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Fontes - InvoiSys</PageTitle>
 
-<MudText Typo="Typo.h4">Fontes</MudText>
-<MudText Typo="Typo.body1">
-    Cadastre e acompanhe as fontes monitoradas pela plataforma.
-</MudText>
+<section class="fontes-page" aria-label="Fontes">
+    <header class="fontes-header">
+        <MudText Typo="Typo.h3" Class="fontes-title">Fontes</MudText>
+        <MudText Typo="Typo.body1">Cadastre, edite e acompanhe as fontes monitoradas pela plataforma</MudText>
+    </header>
 
-@if (_carregando)
-{
-    <MudProgressLinear Indeterminate="true" Class="mt-4" />
-}
-else
-{
-    <MudTable Items="_fontes" Hover="true" Class="mt-4">
-        <HeaderContent>
-            <MudTh>Nome</MudTh>
-            <MudTh>Tipo</MudTh>
-            <MudTh>Status</MudTh>
-            <MudTh>Periodicidade</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Nome">@context.Nome</MudTd>
-            <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
-            <MudTd DataLabel="Status">@context.Status</MudTd>
-            <MudTd DataLabel="Periodicidade">
-                @context.PeriodicidadeMinutos min
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+    <div class="fontes-filter-bar">
+        <MudTextField T="string" Placeholder="Buscar fonte..." Variant="Variant.Outlined"
+                      Margin="Margin.Dense" aria-label="Buscar fonte" />
+        <MudSelect T="string" Label="Tipo" Value="@("Todos")" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   aria-label="Filtrar por tipo">
+            <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="string" Label="Status" Value="@("Todos")" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   aria-label="Filtrar por status">
+            <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="string" Label="Periodicidade" Value="@("Todas")" Variant="Variant.Outlined" Margin="Margin.Dense"
+                   aria-label="Filtrar por periodicidade">
+            <MudSelectItem Value="@("Todas")">Todas</MudSelectItem>
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add"
+                   OnClick="AbrirCadastroAsync" Class="nova-fonte-button">Nova fonte</MudButton>
+    </div>
+
+    <div class="fontes-summary" aria-label="Resumo das fontes">
+        <SummaryCard Title="Total de fontes" Value="@_totalFontes" Icon="@Icons.Material.Outlined.Adjust"
+                     Tone="success" Description="100% do total cadastrado" />
+        <SummaryCard Title="Fontes ativas" Value="@_totalAtivas" Icon="@Icons.Material.Outlined.Check"
+                     Tone="success" Description="@($"{FormatarPercentual(_totalAtivas)} do total cadastrado")" />
+        <SummaryCard Title="Fontes pausadas" Value="@_totalInativas" Icon="@Icons.Material.Outlined.Pause"
+                     Tone="warning" Description="@($"{FormatarPercentual(_totalInativas)} do total cadastrado")" />
+        <SummaryCard Title="Com erro" Value="0" Icon="@Icons.Material.Outlined.PriorityHigh"
+                     Tone="error" Description="Sem dados de execução" />
+    </div>
+
+    <div class="fontes-data-grid">
+    <div class="fontes-table-card">
+        @if (_carregando)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+
+        <MudTable Items="_fontes" Hover="true" Loading="_carregando" Breakpoint="Breakpoint.Sm"
+                  RowsPerPage="10" Elevation="0" Class="fontes-table">
+            <HeaderContent>
+                <MudTh>Fonte</MudTh><MudTh>Tipo</MudTh><MudTh>URL</MudTh><MudTh>Status</MudTh>
+                <MudTh>Periodicidade</MudTh><MudTh>Última coleta</MudTh><MudTh Class="actions-column">Ações</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Fonte">
+                    <div class="fonte-name">
+                        <span class="fonte-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Adjust" Size="Size.Small" /></span>
+                        <span title="@context.Nome">@context.Nome</span>
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="Tipo">@FormatarTipo(context.Tipo)</MudTd>
+                <MudTd DataLabel="URL">
+                    <a class="fonte-url" href="@context.Url" target="_blank" rel="noopener noreferrer" title="@context.Url">@context.Url</a>
+                </MudTd>
+                <MudTd DataLabel="Status"><span class="status-badge @ObterClasseStatus(context.Status)">@FormatarStatus(context.Status)</span></MudTd>
+                <MudTd DataLabel="Periodicidade">@FormatarPeriodicidade(context.PeriodicidadeMinutos)</MudTd>
+                <MudTd DataLabel="Última coleta">—</MudTd>
+                <MudTd DataLabel="Ações" Class="actions-column">
+                    <div class="row-actions">
+                        <MudTooltip Text="Visualizar detalhes">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small"
+                                           OnClick="@(() => SelecionarFonte(context))" aria-label="Ver detalhes" />
+                        </MudTooltip>
+                        <MudTooltip Text="Edição disponível em uma próxima entrega">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Disabled="true" aria-label="Editar fonte" />
+                        </MudTooltip>
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <div class="empty-state">
+                    <MudIcon Icon="@Icons.Material.Outlined.Source" Size="Size.Large" />
+                    <MudText Typo="Typo.subtitle1">Nenhuma fonte cadastrada</MudText>
+                    <MudText Typo="Typo.body2">Cadastre a primeira fonte para começar.</MudText>
+                </div>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" RowsPerPageString="por página"
+                               InfoFormat="Exibindo {first_item}–{last_item} de {all_items} fontes" />
+            </PagerContent>
+        </MudTable>
+    </div>
+
+    <aside class="fonte-details-card" aria-label="Detalhes da fonte">
+        <h2>Detalhes da fonte</h2>
+        @if (_fonteSelecionada is { } fonte)
+        {
+            <div class="details-heading">
+                <span class="details-avatar"><MudIcon Icon="@Icons.Material.Outlined.Adjust" /></span>
+                <div class="details-name"><strong>@fonte.Nome</strong><span>@FormatarTipo(fonte.Tipo)</span></div>
+                <span class="status-badge @ObterClasseStatus(fonte.Status)">@FormatarStatus(fonte.Status)</span>
+            </div>
+            <dl class="details-list">
+                <div><dt>Tipo</dt><dd>@FormatarTipo(fonte.Tipo)</dd></div>
+                <div><dt>URL</dt><dd title="@fonte.Url">@fonte.Url</dd></div>
+                <div><dt>Periodicidade</dt><dd>@FormatarPeriodicidade(fonte.PeriodicidadeMinutos)</dd></div>
+                <div><dt>Timeout</dt><dd>—</dd></div>
+                <div><dt>Última execução</dt><dd>—</dd></div>
+                <div><dt>Próxima execução</dt><dd>—</dd></div>
+                <div><dt>Documentos coletados</dt><dd>—</dd></div>
+                <div><dt>Taxa de sucesso (24h)</dt><dd>—</dd></div>
+            </dl>
+            <div class="details-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit" Disabled="true">Editar fonte</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Outlined.PlayArrow" Disabled="true">Executar coleta</MudButton>
+            </div>
+        }
+        else
+        {
+            <div class="details-empty">Selecione uma fonte para visualizar os detalhes.</div>
+        }
+    </aside>
+    </div>
+
+    <div class="fontes-tip">
+        <span class="tip-icon" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.LightMode" /></span>
+        <div class="tip-content">
+            <strong>Dica rápida</strong>
+            <p>Use os filtros para encontrar fontes rapidamente e acompanhe o status para evitar interrupções nas coletas.</p>
+        </div>
+    </div>
+</section>
 
 @code {
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
     private IReadOnlyList<FonteResponse> _fontes = [];
     private bool _carregando = true;
+    private int _totalFontes;
+    private FonteResponse? _fonteSelecionada;
 
-    protected override async Task OnInitializedAsync()
+    private int _totalAtivas => _fontes.Count(fonte => fonte.Status == StatusFonte.Ativa);
+    private int _totalInativas => _fontes.Count(fonte => fonte.Status == StatusFonte.Inativa);
+
+    protected override async Task OnInitializedAsync() => await CarregarFontesAsync();
+
+    private async Task CarregarFontesAsync()
     {
+        _carregando = true;
         try
         {
-            var response = await FontesClient.ListarAsync();
+            var response = await FontesClient.ListarAsync(tamanhoPagina: 50, cancellationToken: _cancellationTokenSource.Token);
+            if (!response.Sucesso)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return;
+            }
+
             _fontes = response.Dados?.Itens ?? [];
+            _totalFontes = response.Dados?.Total ?? _fontes.Count;
+            _fonteSelecionada ??= _fontes.FirstOrDefault();
         }
-        finally
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Refit.ApiException exception)
         {
-            _carregando = false;
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível carregar as fontes. Tente novamente.", Severity.Error);
         }
+        finally { _carregando = false; }
+    }
+
+    private async Task AbrirCadastroAsync()
+    {
+        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<NovaFonteDialog>("Nova fonte", options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await CarregarFontesAsync();
+            Snackbar.Add("Fonte criada com sucesso.", Severity.Success);
+        }
+    }
+
+    private string FormatarPercentual(int quantidade) => _totalFontes == 0 ? "0%" : $"{quantidade * 100d / _totalFontes:0.#}%";
+    private void SelecionarFonte(FonteResponse fonte) => _fonteSelecionada = fonte;
+    private static string FormatarTipo(TipoFonte tipo) => tipo switch
+    {
+        TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", _ => tipo.ToString()
+    };
+    private static string FormatarStatus(StatusFonte status) => status == StatusFonte.Ativa ? "Ativa" : "Inativa";
+    private static string ObterClasseStatus(StatusFonte status) => status == StatusFonte.Ativa ? "status-active" : "status-inactive";
+    private static string FormatarPeriodicidade(int minutos) => minutos switch
+    {
+        < 60 => $"{minutos} min", 60 => "1 hora", < 1_440 when minutos % 60 == 0 => $"{minutos / 60} horas",
+        1_440 => "Diária", _ => $"{minutos} min"
+    };
+
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
     }
 }

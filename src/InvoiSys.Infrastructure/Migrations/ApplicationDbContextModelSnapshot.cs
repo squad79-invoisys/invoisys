@@ -149,6 +149,10 @@ namespace InvoiSys.Infrastructure.Migrations
                     b.Property<int>("PeriodicidadeMinutos")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SeletorConteudo")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

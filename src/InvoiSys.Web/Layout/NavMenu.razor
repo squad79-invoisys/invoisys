@@ -1,20 +1,25 @@
-<MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All">
-        Dashboard
-    </MudNavLink>
-    <MudNavLink Href="/fontes">
-        Fontes
-    </MudNavLink>
-    <MudNavLink Href="/coletas">
-        Coletas
-    </MudNavLink>
-    <MudNavLink Href="/documentos">
-        Documentos
-    </MudNavLink>
+<div class="sidebar-content">
+    <a class="brand" href="/" aria-label="InvoiSys">
+        <span class="brand-mark"></span><span>invoi</span><strong>Sys</strong>
+    </a>
 
-    <AuthorizeView Roles="Administrador">
-        <MudNavLink Href="/usuarios">
-            Usuários
-        </MudNavLink>
-    </AuthorizeView>
-</MudNavMenu>
+    <MudNavMenu Class="main-navigation">
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Home">Dashboard</MudNavLink>
+        <MudNavLink Href="/fontes" Icon="@Icons.Material.Outlined.Adjust">Fontes</MudNavLink>
+        <MudNavLink Href="/coletas" Icon="@Icons.Material.Outlined.CheckBoxOutlineBlank">Coletas</MudNavLink>
+        <MudNavLink Href="/documentos" Icon="@Icons.Material.Outlined.TableRows">Documentos</MudNavLink>
+        <MudNavLink Href="/historico" Icon="@Icons.Material.Outlined.Schedule">Histórico</MudNavLink>
+        <MudNavLink Href="/configuracoes" Icon="@Icons.Material.Outlined.Settings">Configurações</MudNavLink>
+    </MudNavMenu>
+
+    <div class="sidebar-footer">
+        <div class="help-card">
+            <MudText Typo="Typo.subtitle2">Precisando de ajuda?</MudText>
+            <MudText Typo="Typo.caption">Acesse nossa central de ajuda<br />ou fale com o suporte.</MudText>
+        </div>
+        <div class="user-card">
+            <span class="user-initials">AD</span>
+            <div><MudText Typo="Typo.subtitle2">Admin</MudText><MudText Typo="Typo.caption">Administrador</MudText></div>
+        </div>
+    </div>
+</div>

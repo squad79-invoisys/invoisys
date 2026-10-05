@@ -38,6 +38,8 @@ public sealed class CriarFonteValidatorTests
             TestContext.Current.CancellationToken);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().ContainSingle(error => error.PropertyName == nameof(request.Url));
+        result.Errors.Should().ContainSingle(error =>
+            error.PropertyName == nameof(request.Url) &&
+            error.ErrorMessage == "A URL deve usar http ou https");
     }
 }

@@ -1,6 +1,7 @@
 using FluentValidation;
 using InvoiSys.Application.Common.Abstractions;
 using InvoiSys.Application.Common.Exceptions;
+using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Fontes.AtualizarFonte;
@@ -8,6 +9,7 @@ namespace InvoiSys.Application.Fontes.AtualizarFonte;
 public sealed class AtualizarFonteUseCase(
     IValidator<AtualizarFonteRequest> validator,
     ICurrentUser currentUser,
+    IFonteUrlValidator fonteUrlValidator,
     IFonteRepository fonteRepository,
     IUnitOfWork unitOfWork) : IAtualizarFonteUseCase
 {
@@ -24,12 +26,29 @@ public sealed class AtualizarFonteUseCase(
         var fonte = await fonteRepository.ObterPorIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Fonte não encontrada.");
 
+        var urlNormalizada = request.Url.Trim();
+        var origemAlterada =
+            !string.Equals(
+                fonte.Url,
+                urlNormalizada,
+                StringComparison.Ordinal) ||
+            fonte.Tipo != request.Tipo;
+
+        if (origemAlterada)
+        {
+            await fonteUrlValidator.ValidarAsync(
+                urlNormalizada,
+                request.Tipo,
+                cancellationToken);
+        }
+
         fonte.Atualizar(
             request.Nome,
-            request.Url,
+            urlNormalizada,
             request.Tipo,
             request.PeriodicidadeMinutos,
-            usuarioId);
+            usuarioId,
+            request.SeletorConteudo);
 
         await unitOfWork.CommitAsync(cancellationToken);
 
