@@ -1,36 +1,630 @@
 @page "/usuarios"
-@attribute [Authorize(Roles = "Administrador")]
+@attribute [Authorize]
+
+@using System.Reflection
 @using InvoiSys.Application.Common.Authentication
+@using InvoiSys.Web.Clients
+
 @inject IUsuariosClient UsuariosClient
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>Usuários - InvoiSys</PageTitle>
 
-<MudText Typo="Typo.h4">Usuários</MudText>
-<MudText Typo="Typo.body1">
-    Administração dos acessos internos.
-</MudText>
+<AuthorizeView Roles="Administrador">
+    <Authorized>
+        <div class="d-flex justify-space-between align-center mb-6">
+            <div>
+                <MudText Typo="Typo.h4" Class="fw-bold">
+                    Usuários
+                </MudText>
 
-<MudTable Items="_usuarios" Hover="true" Class="mt-4">
-    <HeaderContent>
-        <MudTh>Nome</MudTh>
-        <MudTh>E-mail</MudTh>
-        <MudTh>Perfis</MudTh>
-        <MudTh>Status</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Nome">@context.Nome</MudTd>
-        <MudTd DataLabel="E-mail">@context.Email</MudTd>
-        <MudTd DataLabel="Perfis">@string.Join(", ", context.Perfis)</MudTd>
-        <MudTd DataLabel="Status">@(context.Ativo ? "Ativo" : "Inativo")</MudTd>
-    </RowTemplate>
-</MudTable>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Gerencie os utilizadores e permissões de acesso à plataforma.
+                </MudText>
+            </div>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="AbrirModalNovoUsuario"
+                       Style="border-radius: 8px; text-transform: none; font-weight: 600;">
+                Novo Usuário
+            </MudButton>
+        </div>
+
+        <MudGrid Class="mb-6">
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="0"
+                          Class="pa-4 d-flex align-center border-solid border rounded-lg">
+
+                    <MudAvatar Color="Color.Success"
+                               Class="mr-4">
+                        <MudIcon Icon="@Icons.Material.Filled.People" />
+                    </MudAvatar>
+
+                    <div>
+                        <MudText Typo="Typo.caption"
+                                 Color="Color.Secondary">
+                            Total de Usuários
+                        </MudText>
+
+                        <MudText Typo="Typo.h5"
+                                 Class="fw-bold">
+                            @_usuarios.Count
+                        </MudText>
+                    </div>
+
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="0"
+                          Class="pa-4 d-flex align-center border-solid border rounded-lg">
+
+                    <MudAvatar Color="Color.Info"
+                               Class="mr-4">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </MudAvatar>
+
+                    <div>
+                        <MudText Typo="Typo.caption"
+                                 Color="Color.Secondary">
+                            Ativos
+                        </MudText>
+
+                        <MudText Typo="Typo.h5"
+                                 Class="fw-bold">
+                            @_usuarios.Count(u => u.Ativo)
+                        </MudText>
+                    </div>
+
+                </MudPaper>
+            </MudItem>
+
+            <!-- Inativos -->
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="0"
+                          Class="pa-4 d-flex align-center border-solid border rounded-lg">
+
+                    <MudAvatar Color="Color.Default"
+                               Class="mr-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Block" />
+                    </MudAvatar>
+
+                    <div>
+                        <MudText Typo="Typo.caption"
+                                 Color="Color.Secondary">
+                            Inativos
+                        </MudText>
+
+                        <MudText Typo="Typo.h5"
+                                 Class="fw-bold">
+                            @_usuarios.Count(u => !u.Ativo)
+                        </MudText>
+                    </div>
+
+                </MudPaper>
+            </MudItem>
+
+        </MudGrid>
+
+        <MudTable Items="_usuarios"
+                  Loading="_carregando"
+                  Elevation="0"
+                  Outlined="true"
+                  Class="rounded-lg">
+
+            <HeaderContent>
+                <MudTh>USUÁRIO</MudTh>
+                <MudTh>E-MAIL</MudTh>
+                <MudTh>PERFIS</MudTh>
+                <MudTh>STATUS</MudTh>
+                <MudTh Style="text-align: right;">AÇÕES</MudTh>
+            </HeaderContent>
+
+            <RowTemplate Context="usuario">
+
+                <MudTd DataLabel="Usuário">
+                    <div class="d-flex align-center">
+
+                        <MudAvatar Color="Color.Success"
+                                   Size="Size.Small"
+                                   Class="mr-3"
+                                   Style="font-size: 12px;">
+                            @ObterIniciais(usuario.Nome)
+                        </MudAvatar>
+
+                        <MudText Typo="Typo.body2"
+                                 Class="fw-semibold">
+                            @usuario.Nome
+                        </MudText>
+
+                    </div>
+                </MudTd>
+
+                <MudTd DataLabel="E-mail">
+                    @usuario.Email
+                </MudTd>
+
+                <MudTd DataLabel="Perfis">
+
+                    @foreach (var perfil in usuario.Perfis)
+                    {
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Variant="Variant.Outlined"
+                                 Color="Color.Default"
+                                 Class="mr-1">
+                            @perfil
+                        </MudChip>
+                    }
+
+                </MudTd>
+
+                <MudTd DataLabel="Status">
+
+                    <MudChip T="string"
+                             Color="@(usuario.Ativo ? Color.Success : Color.Default)"
+                             Size="Size.Small"
+                             Variant="Variant.Outlined">
+
+                        @(usuario.Ativo ? "Ativo" : "Inativo")
+
+                    </MudChip>
+
+                </MudTd>
+
+                <MudTd DataLabel="Ações"
+                        Style="text-align: right;">
+
+                    <MudTooltip Text="@(usuario.Ativo
+                                         ? "Inativar usuário"
+                                         : "Ativar usuário")">
+
+                        <MudIconButton Icon="@(usuario.Ativo
+                                                ? Icons.Material.Filled.ToggleOn
+                                                : Icons.Material.Filled.ToggleOff)"
+                                       Color="@(usuario.Ativo
+                                                ? Color.Success
+                                                : Color.Default)"
+                                       OnClick="@(() => ConfirmarEAlterarStatus(usuario))" />
+
+                    </MudTooltip>
+
+                </MudTd>
+
+            </RowTemplate>
+
+        </MudTable>
+
+    </Authorized>
+
+    <NotAuthorized>
+
+        <MudPaper Elevation="0"
+                  Class="pa-8 mt-6 text-center border-solid border rounded-lg">
+
+            <MudIcon Icon="@Icons.Material.Filled.Lock"
+                     Size="Size.Large"
+                     Color="Color.Error"
+                     Class="mb-2" />
+
+            <MudText Typo="Typo.h5"
+                     Class="fw-bold mb-1">
+                Acesso Negado
+            </MudText>
+
+            <MudText Typo="Typo.body2"
+                     Color="Color.Secondary">
+                Você não possui permissão de Administrador
+                para acessar o gerenciamento de usuários.
+            </MudText>
+
+        </MudPaper>
+
+    </NotAuthorized>
+
+</AuthorizeView>
+
+@if (_exibirModalNovo)
+{
+    <div style="
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;">
+
+        <MudPaper Elevation="8"
+                  Class="pa-6"
+                  Style="
+                      width: 100%;
+                      max-width: 500px;
+                      max-height: 90vh;
+                      overflow-y: auto;
+                      border-radius: 12px;">
+
+            <!-- Título -->
+            <div class="d-flex justify-space-between align-center mb-4">
+
+                <MudText Typo="Typo.h6"
+                         Class="fw-bold">
+                    Novo Usuário
+                </MudText>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Color="Color.Default"
+                               OnClick="FecharModalNovoUsuario" />
+
+            </div>
+
+            <!-- Formulário -->
+            <MudForm @ref="_form"
+                     @bind-IsValid="_formValido">
+
+                <MudTextField T="string"
+                              Label="Nome completo"
+                              @bind-Value="_model.Nome"
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="mb-3" />
+
+                <MudTextField T="string"
+                              Label="E-mail profissional"
+                              @bind-Value="_model.Email"
+                              Required="true"
+                              InputType="InputType.Email"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="mb-3" />
+
+                <MudTextField T="string"
+                              Label="Senha"
+                              @bind-Value="_model.Senha"
+                              Required="true"
+                              InputType="InputType.Password"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Class="mb-3" />
+
+                <MudSelect T="string"
+                           Label="Perfil"
+                           @bind-Value="_model.Perfil"
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+
+                    <MudSelectItem Value="@("Administrador")">
+                        Administrador
+                    </MudSelectItem>
+
+                    <MudSelectItem Value="@("Operador")">
+                        Operador
+                    </MudSelectItem>
+
+                    <MudSelectItem Value="@("Consulta")">
+                        Consulta
+                    </MudSelectItem>
+
+                </MudSelect>
+
+            </MudForm>
+
+            <!-- Ações -->
+            <div class="d-flex justify-end mt-6">
+
+                <MudButton OnClick="FecharModalNovoUsuario"
+                           Class="mr-2"
+                           Style="text-transform: none;">
+                    Cancelar
+                </MudButton>
+
+                <MudButton Color="Color.Success"
+                           Variant="Variant.Filled"
+                           OnClick="SalvarNovoUsuario"
+                           Disabled="!_formValido"
+                           Style="text-transform: none;">
+                    Salvar
+                </MudButton>
+
+            </div>
+
+        </MudPaper>
+    </div>
+}
 
 @code {
+
     private IReadOnlyList<UserSummary> _usuarios = [];
+
+    private bool _carregando = true;
+
+    private bool _exibirModalNovo;
+
+    private bool _formValido;
+
+    private MudForm _form = null!;
+
+    private CriarUsuarioFormModel _model = new();
+
 
     protected override async Task OnInitializedAsync()
     {
-        var response = await UsuariosClient.ListarAsync();
-        _usuarios = response.Dados ?? [];
+        await CarregarUsuariosAsync();
+    }
+
+
+    private async Task CarregarUsuariosAsync()
+    {
+        _carregando = true;
+
+        try
+        {
+            var response = await UsuariosClient.ListarAsync();
+
+            _usuarios = ExtrairListaUsuarios(response);
+        }
+        catch (Exception)
+        {
+            _usuarios = [];
+
+            Snackbar.Add(
+                "Erro ao carregar lista de usuários.",
+                Severity.Error);
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+
+    private void AbrirModalNovoUsuario()
+    {
+        _model = new CriarUsuarioFormModel();
+
+        _formValido = false;
+
+        _exibirModalNovo = true;
+    }
+
+
+    private void FecharModalNovoUsuario()
+    {
+        _exibirModalNovo = false;
+    }
+
+
+    private async Task SalvarNovoUsuario()
+    {
+        await _form.ValidateAsync();
+
+        if (!_formValido)
+            return;
+
+        try
+        {
+            var request = new CriarUsuarioRequest(
+                _model.Nome,
+                _model.Email,
+                _model.Senha,
+                _model.Perfil);
+
+            var response = await UsuariosClient.CriarAsync(request);
+
+            if (ExtrairResultadoBooleano(response))
+            {
+                Snackbar.Add(
+                    "Usuário criado com sucesso!",
+                    Severity.Success);
+
+                _exibirModalNovo = false;
+
+                await CarregarUsuariosAsync();
+            }
+            else
+            {
+                Snackbar.Add(
+                    "Não foi possível criar o usuário.",
+                    Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(
+                "Erro de comunicação ao criar usuário.",
+                Severity.Error);
+        }
+    }
+
+
+    private async Task ConfirmarEAlterarStatus(UserSummary usuario)
+    {
+        var novoStatus = !usuario.Ativo;
+
+        var acao = novoStatus
+            ? "ativar"
+            : "inativar";
+
+        var confirmado = await ConfirmarAcaoAsync(
+            $"Deseja realmente {acao} o usuário {usuario.Nome}?");
+
+        if (!confirmado)
+            return;
+
+        try
+        {
+            var response =
+                await UsuariosClient.AlterarStatusAsync(
+                    usuario.Id,
+                    new AlterarStatusRequest(novoStatus));
+
+            if (ExtrairResultadoBooleano(response))
+            {
+                Snackbar.Add(
+                    $"Usuário {acao}do com sucesso!",
+                    Severity.Success);
+
+                await CarregarUsuariosAsync();
+            }
+            else
+            {
+                Snackbar.Add(
+                    $"Erro ao {acao} usuário.",
+                    Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(
+                "Erro de comunicação ao alterar status.",
+                Severity.Error);
+        }
+    }
+
+    private async Task<bool> ConfirmarAcaoAsync(string mensagem)
+    {
+        try
+        {
+            return await JS.InvokeAsync<bool>("confirm", mensagem);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private string ObterIniciais(string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+            return "US";
+
+        var partes = nome
+            .Trim()
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        return partes.Length > 1
+            ? $"{partes[0][0]}{partes[^1][0]}".ToUpper()
+            : $"{nome[0]}".ToUpper();
+    }
+
+    private static IReadOnlyList<UserSummary> ExtrairListaUsuarios(
+        object? response)
+    {
+        if (response is null)
+            return [];
+
+        if (response is IReadOnlyList<UserSummary> lista)
+            return lista;
+
+        if (response is IEnumerable<UserSummary> enumerable)
+            return enumerable.ToList();
+
+        var propriedades = response
+            .GetType()
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        foreach (var propriedade in propriedades)
+        {
+            try
+            {
+                var valor = propriedade.GetValue(response);
+
+                if (valor is IReadOnlyList<UserSummary> resultado)
+                    return resultado;
+
+                if (valor is IEnumerable<UserSummary> listaResultado)
+                    return listaResultado.ToList();
+            }
+            catch
+            { 
+            }
+        }
+
+        return [];
+    }
+
+    private static bool ExtrairResultadoBooleano(object? response)
+    {
+        if (response is null)
+            return false;
+
+        if (response is bool resultadoDireto)
+            return resultadoDireto;
+
+        var propriedades = response
+            .GetType()
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        var nomesPreferenciais = new[]
+        {
+            "Data",
+            "Result",
+            "Value",
+            "Success",
+            "IsSuccess",
+            "Succeeded"
+        };
+
+        foreach (var nome in nomesPreferenciais)
+        {
+            var propriedade = propriedades.FirstOrDefault(
+                p => string.Equals(
+                    p.Name,
+                    nome,
+                    StringComparison.OrdinalIgnoreCase));
+
+            if (propriedade is null)
+                continue;
+
+            try
+            {
+                var valor = propriedade.GetValue(response);
+
+                if (valor is bool booleano)
+                    return booleano;
+            }
+            catch
+            {
+            }
+        }
+
+        foreach (var propriedade in propriedades)
+        {
+            try
+            {
+                if (propriedade.PropertyType == typeof(bool))
+                {
+                    var valor = propriedade.GetValue(response);
+
+                    if (valor is bool booleano)
+                        return booleano;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return false;
+    }
+
+    public class CriarUsuarioFormModel
+    {
+        public string Nome { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string Senha { get; set; } = string.Empty;
+
+        public string Perfil { get; set; } = "Operador";
     }
 }
