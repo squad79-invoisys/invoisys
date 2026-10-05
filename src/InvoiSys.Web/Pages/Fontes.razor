@@ -1,4 +1,5 @@
 @page "/fontes"
+@attribute [Authorize]
 @implements IDisposable
 @using InvoiSys.Application.Fontes
 @using InvoiSys.Domain.Enums
@@ -30,8 +31,12 @@
                    aria-label="Filtrar por periodicidade">
             <MudSelectItem Value="@("Todas")">Todas</MudSelectItem>
         </MudSelect>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add"
-                   OnClick="AbrirCadastroAsync" Class="nova-fonte-button">Nova fonte</MudButton>
+        <AuthorizeView Roles="Administrador,Operador" Context="newSourceAuthorization">
+            <Authorized>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add"
+                           OnClick="AbrirCadastroAsync" Class="nova-fonte-button">Nova fonte</MudButton>
+            </Authorized>
+        </AuthorizeView>
     </div>
 
     <div class="fontes-summary" aria-label="Resumo das fontes">
@@ -78,9 +83,22 @@
                             <MudIconButton Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small"
                                            OnClick="@(() => SelecionarFonte(context))" aria-label="Ver detalhes" />
                         </MudTooltip>
-                        <MudTooltip Text="Edição disponível em uma próxima entrega">
-                            <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Disabled="true" aria-label="Editar fonte" />
-                        </MudTooltip>
+                        <AuthorizeView Roles="Administrador,Operador" Context="rowAuthorization">
+                            <Authorized>
+                                <MudTooltip Text="Editar fonte">
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
+                                                   Disabled="@(_fonteEmAlteracaoId is not null)"
+                                                   OnClick="@(() => AbrirEdicaoAsync(context))" aria-label="Editar fonte" />
+                                </MudTooltip>
+                                <MudTooltip Text="@(context.Status == StatusFonte.Ativa ? "Inativar fonte" : "Ativar fonte")">
+                                    <MudIconButton Icon="@(context.Status == StatusFonte.Ativa ? Icons.Material.Outlined.PauseCircleOutline : Icons.Material.Outlined.PlayCircleOutline)"
+                                                   Size="Size.Small" Color="@(context.Status == StatusFonte.Ativa ? Color.Warning : Color.Success)"
+                                                   Disabled="@(_fonteEmAlteracaoId is not null)"
+                                                   OnClick="@(() => ConfirmarAlteracaoStatusAsync(context))"
+                                                   aria-label="@(context.Status == StatusFonte.Ativa ? "Inativar fonte" : "Ativar fonte")" />
+                                </MudTooltip>
+                            </Authorized>
+                        </AuthorizeView>
                     </div>
                 </MudTd>
             </RowTemplate>
@@ -117,10 +135,19 @@
                 <div><dt>Documentos coletados</dt><dd>—</dd></div>
                 <div><dt>Taxa de sucesso (24h)</dt><dd>—</dd></div>
             </dl>
-            <div class="details-actions">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit" Disabled="true">Editar fonte</MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Outlined.PlayArrow" Disabled="true">Executar coleta</MudButton>
-            </div>
+            <AuthorizeView Roles="Administrador,Operador" Context="detailsAuthorization">
+                <Authorized>
+                    <div class="details-actions">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit"
+                                   Disabled="@(_fonteEmAlteracaoId is not null)" OnClick="@(() => AbrirEdicaoAsync(fonte))">Editar fonte</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="@(fonte.Status == StatusFonte.Ativa ? Color.Warning : Color.Success)"
+                                   StartIcon="@(fonte.Status == StatusFonte.Ativa ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)"
+                                   Disabled="@(_fonteEmAlteracaoId is not null)" OnClick="@(() => ConfirmarAlteracaoStatusAsync(fonte))">
+                            @(fonte.Status == StatusFonte.Ativa ? "Inativar fonte" : "Ativar fonte")
+                        </MudButton>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
         }
         else
         {
@@ -144,6 +171,7 @@
     private bool _carregando = true;
     private int _totalFontes;
     private FonteResponse? _fonteSelecionada;
+    private Guid? _fonteEmAlteracaoId;
 
     private int _totalAtivas => _fontes.Count(fonte => fonte.Status == StatusFonte.Ativa);
     private int _totalInativas => _fontes.Count(fonte => fonte.Status == StatusFonte.Inativa);
@@ -162,9 +190,12 @@
                 return;
             }
 
+            var fonteSelecionadaId = _fonteSelecionada?.Id;
             _fontes = response.Dados?.Itens ?? [];
             _totalFontes = response.Dados?.Total ?? _fontes.Count;
-            _fonteSelecionada ??= _fontes.FirstOrDefault();
+            _fonteSelecionada = fonteSelecionadaId is null
+                ? _fontes.FirstOrDefault()
+                : _fontes.FirstOrDefault(fonte => fonte.Id == fonteSelecionadaId) ?? _fontes.FirstOrDefault();
         }
         catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
         catch (Refit.ApiException exception)
@@ -184,6 +215,64 @@
         {
             await CarregarFontesAsync();
             Snackbar.Add("Fonte criada com sucesso.", Severity.Success);
+        }
+    }
+
+    private async Task AbrirEdicaoAsync(FonteResponse fonte)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(NovaFonteDialog.Fonte)] = fonte
+        };
+        var options = new DialogOptions { CloseButton = true, CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<NovaFonteDialog>("Editar fonte", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await CarregarFontesAsync();
+            Snackbar.Add("Fonte atualizada com sucesso.", Severity.Success);
+        }
+    }
+
+    private async Task ConfirmarAlteracaoStatusAsync(FonteResponse fonte)
+    {
+        var ativar = fonte.Status == StatusFonte.Inativa;
+        var acao = ativar ? "ativar" : "inativar";
+        var confirmado = await DialogService.ShowMessageBoxAsync(
+            $"{(ativar ? "Ativar" : "Inativar")} fonte",
+            $"Deseja realmente {acao} a fonte “{fonte.Nome}”?",
+            yesText: ativar ? "Ativar" : "Inativar",
+            cancelText: "Cancelar");
+
+        if (confirmado is not true)
+            return;
+
+        _fonteEmAlteracaoId = fonte.Id;
+        try
+        {
+            var response = ativar
+                ? await FontesClient.AtivarAsync(fonte.Id, _cancellationTokenSource.Token)
+                : await FontesClient.DesativarAsync(fonte.Id, _cancellationTokenSource.Token);
+
+            if (!response.Sucesso)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return;
+            }
+
+            await CarregarFontesAsync();
+            Snackbar.Add(response.Mensagem, Severity.Success);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Refit.ApiException exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível alterar o status da fonte. Tente novamente.", Severity.Error);
+        }
+        finally
+        {
+            _fonteEmAlteracaoId = null;
         }
     }
 

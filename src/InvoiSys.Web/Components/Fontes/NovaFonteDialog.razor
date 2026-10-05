@@ -1,5 +1,7 @@
 @using System.Text.Json
 @using InvoiSys.Application.Common.Responses
+@using InvoiSys.Application.Fontes
+@using InvoiSys.Application.Fontes.AtualizarFonte
 @using InvoiSys.Application.Fontes.CriarFonte
 @using InvoiSys.Domain.Enums
 @using InvoiSys.Web.Contracts
@@ -42,7 +44,7 @@
             {
                 <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /><span>Salvando...</span>
             }
-            else { <span>Cadastrar fonte</span> }
+            else { <span>@(_editando ? "Salvar alterações" : "Cadastrar fonte")</span> }
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -53,8 +55,25 @@
     private MudForm? _form;
     private string? _erro;
     private bool _salvando;
+    private bool _modeloInicializado;
+
+    [Parameter] public FonteResponse? Fonte { get; set; }
 
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private bool _editando => Fonte is not null;
+
+    protected override void OnParametersSet()
+    {
+        if (_modeloInicializado || Fonte is null)
+            return;
+
+        _model.Nome = Fonte.Nome;
+        _model.Url = Fonte.Url;
+        _model.Tipo = Fonte.Tipo;
+        _model.PeriodicidadeMinutos = Fonte.PeriodicidadeMinutos;
+        _modeloInicializado = true;
+    }
 
     private async Task SalvarAsync()
     {
@@ -66,8 +85,10 @@
         _erro = null;
         try
         {
-            var request = new CriarFonteRequest(_model.Nome.Trim(), _model.Url.Trim(), _model.Tipo.Value, _model.PeriodicidadeMinutos.Value);
-            var response = await FontesClient.CriarAsync(request);
+            var response = _editando
+                ? await AtualizarAsync()
+                : await CriarAsync();
+
             if (!response.Sucesso)
             {
                 _erro = response.Mensagem;
@@ -87,6 +108,28 @@
             _erro = "Não foi possível cadastrar a fonte. Tente novamente.";
         }
         finally { _salvando = false; }
+    }
+
+    private Task<ApiResponse<FonteResponse>> CriarAsync()
+    {
+        var request = new CriarFonteRequest(
+            _model.Nome.Trim(),
+            _model.Url.Trim(),
+            _model.Tipo!.Value,
+            _model.PeriodicidadeMinutos!.Value);
+
+        return FontesClient.CriarAsync(request);
+    }
+
+    private Task<ApiResponse<FonteResponse>> AtualizarAsync()
+    {
+        var request = new AtualizarFonteRequest(
+            _model.Nome.Trim(),
+            _model.Url.Trim(),
+            _model.Tipo!.Value,
+            _model.PeriodicidadeMinutos!.Value);
+
+        return FontesClient.AtualizarAsync(Fonte!.Id, request);
     }
 
     private static string? ExtrairMensagem(Refit.ApiException exception)
