@@ -10,5 +10,6 @@ public interface IDocumentosClient
     Task<Responses.ApiResponse<Responses.PagedResponse<DocumentoResponse>>> ListarAsync(
         [Query] int pagina = 1,
         [Query] int tamanhoPagina = 50,
+        [Query] string? contexto = null,
         CancellationToken cancellationToken = default);
 }

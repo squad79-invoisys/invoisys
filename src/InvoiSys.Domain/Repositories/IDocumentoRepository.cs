@@ -13,6 +13,7 @@ public interface IDocumentoRepository
     Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(
         int pagina,
         int tamanhoPagina,
+        string? contexto,
         string? busca,
         CancellationToken cancellationToken);
 }

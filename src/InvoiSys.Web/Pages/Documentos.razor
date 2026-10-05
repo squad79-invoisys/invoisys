@@ -10,16 +10,22 @@
     Documentos encontrados pelas rotinas de coleta.
 </MudText>
 
+<MudTextField T="string" @bind-Value="_contextoFiltro" @bind-Value:after="CarregarDocumentosAsync"
+              Label="Contexto" Variant="Variant.Outlined" Immediate="true" DebounceInterval="350"
+              Clearable="true" Class="mt-4" aria-label="Filtrar documentos por contexto" />
+
 <MudTable Items="_documentos" Hover="true" Class="mt-4">
     <HeaderContent>
         <MudTh>Título</MudTh>
         <MudTh>Tipo</MudTh>
+        <MudTh>Contexto</MudTh>
         <MudTh>Origem</MudTh>
         <MudTh>Data da coleta</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Título">@context.Titulo</MudTd>
         <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+        <MudTd DataLabel="Contexto">@context.Contexto</MudTd>
         <MudTd DataLabel="Origem">@context.Origem</MudTd>
         <MudTd DataLabel="Data">@context.DataColeta.LocalDateTime</MudTd>
     </RowTemplate>
@@ -27,10 +33,13 @@
 
 @code {
     private IReadOnlyList<DocumentoResponse> _documentos = [];
+    private string? _contextoFiltro;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await CarregarDocumentosAsync();
+
+    private async Task CarregarDocumentosAsync()
     {
-        var response = await DocumentosClient.ListarAsync();
+        var response = await DocumentosClient.ListarAsync(contexto: _contextoFiltro);
         _documentos = response.Dados?.Itens ?? [];
     }
 }

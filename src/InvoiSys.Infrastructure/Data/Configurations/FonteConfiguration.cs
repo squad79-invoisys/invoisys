@@ -33,7 +33,12 @@ public sealed class FonteConfiguration : IEntityTypeConfiguration<Fonte>
         builder.Property(x => x.SeletorConteudo)
             .HasMaxLength(200);
 
+        builder.Property(x => x.Contexto)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.HasIndex(x => x.Url);
         builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => x.Contexto);
     }
 }

@@ -7,4 +7,5 @@ public sealed record ListarFontesRequest(
     int TamanhoPagina = 20,
     TipoFonte? Tipo = null,
     StatusFonte? Status = null,
+    string? Contexto = null,
     string? Busca = null);
