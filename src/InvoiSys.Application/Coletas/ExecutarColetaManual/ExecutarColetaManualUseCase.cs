@@ -34,7 +34,10 @@ public sealed class ExecutarColetaManualUseCase(
         try
         {
             var collector = collectorResolver.Resolver(fonte.Tipo);
-            var coletados = await collector.ColetarAsync(fonte.Url, cancellationToken);
+            var coletados = await collector.ColetarAsync(
+                fonte.Url,
+                fonte.SeletorConteudo,
+                cancellationToken);
 
             var documentos = coletados
                 .Select(documento => new Documento(

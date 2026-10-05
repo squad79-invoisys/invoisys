@@ -47,7 +47,8 @@ public sealed class AtualizarFonteUseCase(
             urlNormalizada,
             request.Tipo,
             request.PeriodicidadeMinutos,
-            usuarioId);
+            usuarioId,
+            request.SeletorConteudo);
 
         await unitOfWork.CommitAsync(cancellationToken);
 

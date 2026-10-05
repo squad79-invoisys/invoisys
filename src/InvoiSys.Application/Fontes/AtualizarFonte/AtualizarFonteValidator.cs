@@ -1,4 +1,5 @@
 using FluentValidation;
+using InvoiSys.Domain.Enums;
 
 namespace InvoiSys.Application.Fontes.AtualizarFonte;
 
@@ -20,5 +21,14 @@ public sealed class AtualizarFonteValidator : AbstractValidator<AtualizarFonteRe
             .WithMessage("A URL deve usar http ou https");
         RuleFor(x => x.Tipo).IsInEnum();
         RuleFor(x => x.PeriodicidadeMinutos).GreaterThan(0).LessThanOrEqualTo(43_200);
+
+        RuleFor(x => x.SeletorConteudo)
+            .MaximumLength(200)
+            .When(x => !string.IsNullOrWhiteSpace(x.SeletorConteudo));
+
+        RuleFor(x => x.SeletorConteudo)
+            .Empty()
+            .When(x => x.Tipo != TipoFonte.WebHtml)
+            .WithMessage("O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
     }
 }

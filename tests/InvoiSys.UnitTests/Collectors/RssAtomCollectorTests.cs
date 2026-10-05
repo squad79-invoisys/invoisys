@@ -25,6 +25,7 @@ public sealed class RssAtomCollectorTests
 
         var documents = await collector.ColetarAsync(
             "https://exemplo.com/feed",
+            null,
             TestContext.Current.CancellationToken);
 
         documents.Should().ContainSingle();
@@ -54,6 +55,7 @@ public sealed class RssAtomCollectorTests
 
         var documents = await collector.ColetarAsync(
             "https://exemplo.com/feed",
+            null,
             TestContext.Current.CancellationToken);
 
         documents.Should().ContainSingle();
@@ -77,6 +79,7 @@ public sealed class RssAtomCollectorTests
 
         var documents = await collector.ColetarAsync(
             "https://exemplo.com/feed",
+            null,
             TestContext.Current.CancellationToken);
 
         documents.Should().ContainSingle();
@@ -100,6 +103,7 @@ public sealed class RssAtomCollectorTests
 
         var documents = await collector.ColetarAsync(
             "https://exemplo.com/feed",
+            null,
             TestContext.Current.CancellationToken);
 
         documents.Should().ContainSingle();
@@ -114,6 +118,7 @@ public sealed class RssAtomCollectorTests
 
         var documents = await collector.ColetarAsync(
             "https://exemplo.com/feed",
+            null,
             TestContext.Current.CancellationToken);
 
         documents.Should().BeEmpty();

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
+using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Collectors.WebHtml;
 using InvoiSys.Domain.Enums;
 
@@ -23,7 +24,7 @@ public sealed class WebHtmlCollectorTests
         var collector = CriarCollector(
             "<html><head><title>Portal DF-e</title></head><body><h1>Outro</h1></body></html>");
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         documentos.Should().ContainSingle();
         documentos[0].Titulo.Should().Be("Portal DF-e");
@@ -35,7 +36,7 @@ public sealed class WebHtmlCollectorTests
         var collector = CriarCollector(
             "<html><body><h1>Manual da NF-e</h1><p>Conteúdo</p></body></html>");
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         documentos[0].Titulo.Should().Be("Manual da NF-e");
     }
@@ -45,7 +46,7 @@ public sealed class WebHtmlCollectorTests
     {
         var collector = CriarCollector("<html><body><p>Só texto</p></body></html>");
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         documentos[0].Titulo.Should().Be("Sem título");
     }
@@ -63,7 +64,7 @@ public sealed class WebHtmlCollectorTests
             </body></html>
             """);
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
         var conteudo = documentos[0].ConteudoTextual;
 
         conteudo.Should().Contain("Nota técnica publicada hoje.");
@@ -78,8 +79,8 @@ public sealed class WebHtmlCollectorTests
     {
         const string html = "<html><head><title>Portal</title></head><body><p>Mesmo texto</p></body></html>";
 
-        var primeira = await CriarCollector(html).ColetarAsync(Url, CancellationToken.None);
-        var segunda = await CriarCollector(html).ColetarAsync(Url, CancellationToken.None);
+        var primeira = await CriarCollector(html).ColetarAsync(Url, null, CancellationToken.None);
+        var segunda = await CriarCollector(html).ColetarAsync(Url, null, CancellationToken.None);
 
         segunda[0].Hash.Should().Be(primeira[0].Hash);
         primeira[0].Hash.Should().NotBeNullOrWhiteSpace();
@@ -90,11 +91,11 @@ public sealed class WebHtmlCollectorTests
     {
         var antes = await CriarCollector(
             "<html><head><title>Portal</title></head><body><p>Versão 1</p></body></html>")
-            .ColetarAsync(Url, CancellationToken.None);
+            .ColetarAsync(Url, null, CancellationToken.None);
 
         var depois = await CriarCollector(
             "<html><head><title>Portal</title></head><body><p>Versão 2</p></body></html>")
-            .ColetarAsync(Url, CancellationToken.None);
+            .ColetarAsync(Url, null, CancellationToken.None);
 
         depois[0].Hash.Should().NotBe(antes[0].Hash);
     }
@@ -110,7 +111,7 @@ public sealed class WebHtmlCollectorTests
             </body></html>
             """);
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         documentos[0].ConteudoTextual.Should().Be("Texto do artigo");
     }
@@ -124,7 +125,7 @@ public sealed class WebHtmlCollectorTests
             </head><body><p>Conteúdo</p></body></html>
             """);
 
-        var documentos = await collector.ColetarAsync(Url, CancellationToken.None);
+        var documentos = await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         documentos[0].DataPublicacao.Should().Be(
             new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero));
@@ -135,7 +136,7 @@ public sealed class WebHtmlCollectorTests
     {
         var documentos = await CriarCollector(
             "<html><head><title>Portal</title></head><body><p>x</p></body></html>")
-            .ColetarAsync(Url, CancellationToken.None);
+            .ColetarAsync(Url, null, CancellationToken.None);
 
         documentos[0].Tipo.Should().Be("WEB");
         documentos[0].Origem.Should().Be(Url);
@@ -148,9 +149,81 @@ public sealed class WebHtmlCollectorTests
         var collector = new WebHtmlCollector(
             new HttpClient(new RespostaFixaHandler("", HttpStatusCode.NotFound)));
 
-        var acao = async () => await collector.ColetarAsync(Url, CancellationToken.None);
+        var acao = async () => await collector.ColetarAsync(Url, null, CancellationToken.None);
 
         await acao.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComSeletor_DeveExtrairApenasOTrechoIndicado()
+    {
+        var collector = CriarCollector("""
+            <html><head><title>Manual</title></head>
+            <body>
+              <div class="menu">Navegação do portal</div>
+              <div id="conteudo"><p>Regra de validação 501.</p></div>
+              <div class="rodape">Texto do rodapé</div>
+            </body></html>
+            """);
+
+        var documentos = await collector.ColetarAsync(Url, "#conteudo", CancellationToken.None);
+
+        documentos[0].ConteudoTextual.Should().Be("Regra de validação 501.");
+    }
+
+    [Fact]
+    public async Task ColetarAsync_SemSeletor_DeveUsarAExtracaoPadrao()
+    {
+        const string html = """
+            <html><head><title>Manual</title></head>
+            <body><main><p>Conteúdo principal</p></main></body></html>
+            """;
+
+        var comNulo = await CriarCollector(html).ColetarAsync(Url, null, CancellationToken.None);
+        var comVazio = await CriarCollector(html).ColetarAsync(Url, "   ", CancellationToken.None);
+
+        comNulo[0].ConteudoTextual.Should().Be("Conteúdo principal");
+        comVazio[0].ConteudoTextual.Should().Be("Conteúdo principal");
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComSeletorQueNaoEncontraNada_DeveFalharComMensagemClara()
+    {
+        var collector = CriarCollector(
+            "<html><head><title>Manual</title></head><body><p>Texto</p></body></html>");
+
+        var acao = async () =>
+            await collector.ColetarAsync(Url, ".inexistente", CancellationToken.None);
+
+        (await acao.Should().ThrowAsync<BusinessException>())
+            .WithMessage("*.inexistente*não encontrou nenhum elemento*");
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComSeletorQueEncontraElementoVazio_DeveFalhar()
+    {
+        var collector = CriarCollector("""
+            <html><head><title>Manual</title></head>
+            <body><div id="conteudo">   </div></body></html>
+            """);
+
+        var acao = async () =>
+            await collector.ColetarAsync(Url, "#conteudo", CancellationToken.None);
+
+        await acao.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComSeletorQueCasaVariosElementos_DeveJuntarOsTextos()
+    {
+        var collector = CriarCollector("""
+            <html><head><title>Manual</title></head>
+            <body><p class="nt">Nota 2026.001</p><p class="nt">Nota 2026.002</p></body></html>
+            """);
+
+        var documentos = await collector.ColetarAsync(Url, ".nt", CancellationToken.None);
+
+        documentos[0].ConteudoTextual.Should().Be("Nota 2026.001 Nota 2026.002");
     }
 
     private static WebHtmlCollector CriarCollector(string html) =>

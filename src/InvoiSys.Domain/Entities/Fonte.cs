@@ -14,11 +14,13 @@ public sealed class Fonte
         string url,
         TipoFonte tipo,
         int periodicidadeMinutos,
-        Guid criadoPorUsuarioId)
+        Guid criadoPorUsuarioId,
+        string? seletorConteudo = null)
     {
         ValidarNome(nome);
         ValidarUrl(url);
         ValidarPeriodicidade(periodicidadeMinutos);
+        ValidarSeletorConteudo(seletorConteudo, tipo);
 
         if (criadoPorUsuarioId == Guid.Empty)
             throw new DomainException("O usuário responsável pelo cadastro é obrigatório.");
@@ -28,6 +30,7 @@ public sealed class Fonte
         Url = url.Trim();
         Tipo = tipo;
         PeriodicidadeMinutos = periodicidadeMinutos;
+        SeletorConteudo = NormalizarSeletor(seletorConteudo);
         Status = StatusFonte.Ativa;
         CriadoEm = DateTimeOffset.UtcNow;
         CriadoPorUsuarioId = criadoPorUsuarioId;
@@ -39,6 +42,14 @@ public sealed class Fonte
     public TipoFonte Tipo { get; private set; }
     public StatusFonte Status { get; private set; }
     public int PeriodicidadeMinutos { get; private set; }
+
+    /// <summary>
+    /// Seletor CSS opcional que delimita o conteúdo principal da página.
+    /// Vale apenas para fontes do tipo WebHtml. Quando vazio, o coletor usa a
+    /// extração padrão de article, main ou body.
+    /// </summary>
+    public string? SeletorConteudo { get; private set; }
+
     public DateTimeOffset CriadoEm { get; private set; }
     public Guid CriadoPorUsuarioId { get; private set; }
     public DateTimeOffset? AlteradoEm { get; private set; }
@@ -49,16 +60,19 @@ public sealed class Fonte
         string url,
         TipoFonte tipo,
         int periodicidadeMinutos,
-        Guid usuarioId)
+        Guid usuarioId,
+        string? seletorConteudo = null)
     {
         ValidarNome(nome);
         ValidarUrl(url);
         ValidarPeriodicidade(periodicidadeMinutos);
+        ValidarSeletorConteudo(seletorConteudo, tipo);
 
         Nome = nome.Trim();
         Url = url.Trim();
         Tipo = tipo;
         PeriodicidadeMinutos = periodicidadeMinutos;
+        SeletorConteudo = NormalizarSeletor(seletorConteudo);
         RegistrarAlteracao(usuarioId);
     }
 
@@ -103,4 +117,22 @@ public sealed class Fonte
         if (periodicidadeMinutos <= 0)
             throw new DomainException("A periodicidade deve ser maior que zero.");
     }
+
+    private static void ValidarSeletorConteudo(string? seletorConteudo, TipoFonte tipo)
+    {
+        if (string.IsNullOrWhiteSpace(seletorConteudo))
+            return;
+
+        if (tipo != TipoFonte.WebHtml)
+        {
+            throw new DomainException(
+                "O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
+        }
+
+        if (seletorConteudo.Trim().Length > 200)
+            throw new DomainException("O seletor de conteúdo deve ter no máximo 200 caracteres.");
+    }
+
+    private static string? NormalizarSeletor(string? seletorConteudo) =>
+        string.IsNullOrWhiteSpace(seletorConteudo) ? null : seletorConteudo.Trim();
 }

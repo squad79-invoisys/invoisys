@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using InvoiSys.Application.Common.Collectors;
+using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Domain.Enums;
 
 namespace InvoiSys.Collectors.WebHtml;
@@ -22,6 +23,7 @@ public sealed partial class WebHtmlCollector(
 
     public async Task<IReadOnlyList<CollectedDocument>> ColetarAsync(
         string url,
+        string? seletorConteudo,
         CancellationToken cancellationToken)
     {
         using var response = await httpClient.GetAsync(url, cancellationToken);
@@ -37,9 +39,43 @@ public sealed partial class WebHtmlCollector(
         var metadados = ExtrairMetadados(document);
 
         DescartarElementosSemConteudo(document);
-        var conteudo = ExtrairConteudo(document);
+
+        var conteudo = string.IsNullOrWhiteSpace(seletorConteudo)
+            ? ExtrairConteudo(document)
+            : ExtrairConteudoPorSeletor(document, seletorConteudo.Trim());
 
         return [CriarDocumento(titulo, url, dataPublicacao, conteudo, metadados)];
+    }
+
+    private static string ExtrairConteudoPorSeletor(IDocument document, string seletor)
+    {
+        IHtmlCollection<IElement> elementos;
+
+        try
+        {
+            elementos = document.QuerySelectorAll(seletor);
+        }
+        catch (DomException)
+        {
+            throw new BusinessException(
+                $"O seletor de conteúdo \"{seletor}\" não é um seletor CSS válido.");
+        }
+
+        if (elementos.Length == 0)
+        {
+            throw new BusinessException(
+                $"O seletor de conteúdo \"{seletor}\" não encontrou nenhum elemento na página.");
+        }
+
+        var texto = Normalizar(string.Join(" ", elementos.Select(e => e.TextContent)));
+
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            throw new BusinessException(
+                $"O seletor de conteúdo \"{seletor}\" encontrou elementos sem texto na página.");
+        }
+
+        return texto;
     }
 
     private static string ExtrairTitulo(IDocument document)

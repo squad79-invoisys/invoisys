@@ -16,8 +16,10 @@ public sealed partial class RssAtomCollector(
 
     public async Task<IReadOnlyList<CollectedDocument>> ColetarAsync(
         string url,
+        string? seletorConteudo,
         CancellationToken cancellationToken)
     {
+        // O seletor de conteúdo não se aplica a feeds: o formato já delimita cada item.
         using var response = await httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
 
