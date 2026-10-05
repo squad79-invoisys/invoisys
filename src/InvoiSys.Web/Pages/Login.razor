@@ -1,4 +1,5 @@
 @page "/login"
+@layout LoginLayout
 @using InvoiSys.Web.Contracts
 @using System.Net
 @using Refit
@@ -7,44 +8,65 @@
 
 <PageTitle>Login - InvoiSys</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
-    <MudPaper Elevation="2" Class="pa-8">
-        <MudText Typo="Typo.h4" GutterBottom="true">InvoiSys</MudText>
-        <MudText Typo="Typo.body1" GutterBottom="true">
-            Entre com seu e-mail e senha.
-        </MudText>
+<div class="login-card">
+    <div class="login-logo" aria-label="InvoiSys">
+        <span class="login-logo-bar"></span>invoi<span class="login-logo-sys">Sys</span>
+    </div>
 
-        <MudTextField @bind-Value="_model.Email"
-                      Label="E-mail"
-                      InputType="InputType.Email"
-                      Class="mt-4" />
-        <MudTextField @bind-Value="_model.Senha"
-                      Label="Senha"
-                      InputType="InputType.Password"
-                      Class="mt-4" />
+    <h1 class="login-title">Acesso ao Sistema</h1>
+
+    <form @onsubmit="EntrarAsync">
+        <label class="login-label" for="login-email">Email</label>
+        <input id="login-email"
+               class="login-input"
+               type="email"
+               autocomplete="username"
+               @bind="_model.Email" />
+
+        <label class="login-label" for="login-senha">Senha</label>
+        <input id="login-senha"
+               class="login-input"
+               type="password"
+               autocomplete="current-password"
+               @bind="_model.Senha" />
+
+        @* Sem endpoint de recuperação de senha na API: link desabilitado nesta entrega. *@
+        <div class="login-forgot">
+            <span class="login-forgot-disabled"
+                  aria-disabled="true"
+                  title="Recuperação de senha ainda não disponível">Esqueceu a senha?</span>
+        </div>
 
         @if (!string.IsNullOrWhiteSpace(_erro))
         {
-            <MudAlert Severity="Severity.Error" Class="mt-4">
+            <MudAlert Severity="Severity.Error" Class="login-error">
                 @_erro
             </MudAlert>
         }
 
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   FullWidth="true"
-                   Disabled="_carregando"
-                   OnClick="EntrarAsync"
-                   Class="mt-6">
-            Entrar
-        </MudButton>
-    </MudPaper>
-</MudContainer>
+        <button type="submit" class="login-submit" disabled="@_carregando">Entrar</button>
+
+        @* Apenas visual: o comportamento (duração da sessão) ainda precisa ser definido. *@
+        <label class="login-remember">
+            <input type="checkbox" @bind="_lembrarDeMim" />
+            Lembrar de mim
+        </label>
+    </form>
+
+    <div class="login-tip">
+        <p class="login-tip-title">Dica rápida</p>
+        <p class="login-tip-text">
+            Seu login dá acesso a todas as funcionalidades de gestão de fontes,
+            coletas e documentos. <strong>Proteja suas credenciais.</strong>
+        </p>
+    </div>
+</div>
 
 @code {
     private readonly LoginFormModel _model = new();
     private string? _erro;
     private bool _carregando;
+    private bool _lembrarDeMim;
 
     private async Task EntrarAsync()
     {
