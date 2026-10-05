@@ -1,0 +1,14 @@
+.app-shell { min-height:100vh; background:#f7fafb; }
+.app-sidebar { background:#fff; border-right:1px solid #e3e8ed; bottom:0; left:0; position:fixed; top:0; width:230px; z-index:20; }
+.app-topbar { align-items:center; background:#fff; border-bottom:1px solid #e3e8ed; display:flex; gap:22px; height:64px; left:230px; padding:0 28px; position:fixed; right:0; top:0; z-index:15; }
+.app-topbar > p { color:#141c29; font-size:14px; font-weight:500; }
+.topbar-actions { align-items:center; display:flex; gap:12px; margin-left:auto; }
+.topbar-avatar { align-items:center; background:#0a9e40; border-radius:50%; color:#fff; display:flex; font-size:11px; font-weight:600; height:36px; justify-content:center; width:36px; }
+.app-content { margin-left:230px; min-height:100vh; padding-top:64px; }
+.app-content-inner { margin:0 auto; max-width:1210px; padding:28px 32px; }
+@media (max-width:900px) {
+    .app-sidebar { display:none; }
+    .app-topbar { left:0; }
+    .app-content { margin-left:0; }
+    .app-content-inner { padding:24px 18px; }
+}

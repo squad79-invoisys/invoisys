@@ -5,21 +5,24 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
-    <MudAppBar Elevation="0">
-        <MudText Typo="Typo.h6">InvoiSys</MudText>
-    </MudAppBar>
-
-    <MudDrawer Open="true"
-               Variant="DrawerVariant.Mini"
-               Elevation="1">
+<div class="app-shell">
+    <aside class="app-sidebar">
         <NavMenu />
-    </MudDrawer>
+    </aside>
 
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge"
-                      Class="mt-6">
+    <header class="app-topbar">
+        <MudIcon Icon="@Icons.Material.Outlined.Menu" Size="Size.Small" />
+        <MudText Typo="Typo.subtitle1">Fontes</MudText>
+        <div class="topbar-actions">
+            <MudIconButton Icon="@Icons.Material.Outlined.Search" Size="Size.Small" aria-label="Pesquisar" />
+            <MudIconButton Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-label="Ajuda" />
+            <span class="topbar-avatar">AD</span>
+        </div>
+    </header>
+
+    <main class="app-content">
+        <div class="app-content-inner">
             @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+        </div>
+    </main>
+</div>

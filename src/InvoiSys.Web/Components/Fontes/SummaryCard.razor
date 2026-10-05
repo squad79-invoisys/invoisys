@@ -1,0 +1,16 @@
+<div class="summary-card">
+    <span class="summary-icon @Tone" aria-hidden="true"><MudIcon Icon="@Icon" /></span>
+    <div class="summary-content">
+        <p class="summary-title">@Title</p>
+        <strong class="summary-value">@Value</strong>
+        <p class="summary-description @Tone">@Description</p>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public int Value { get; set; }
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Description { get; set; } = string.Empty;
+    [Parameter] public string Tone { get; set; } = "success";
+}

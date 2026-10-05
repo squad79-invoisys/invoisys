@@ -1,0 +1,12 @@
+.summary-card { align-items:center; background:#fff; border:1px solid #e3e8ed; border-radius:12px; display:flex; gap:16px; min-height:104px; padding:15px; }
+.summary-content { min-width:0; }
+.summary-title { color:#5e697a; font-size:11px; line-height:1.35; margin:0; }
+.summary-value { color:#141c29; display:block; font-size:24px; font-weight:700; line-height:1.25; margin:2px 0; }
+.summary-description { font-size:9px; line-height:1.35; margin:0; white-space:nowrap; }
+.summary-icon { align-items:center; border-radius:50%; display:inline-flex; flex:0 0 auto; height:48px; justify-content:center; width:48px; }
+.summary-icon.success { background:#e0f7e8; color:#0a9e40; }
+.summary-icon.warning { background:#fff2db; color:#f08c1a; }
+.summary-icon.error { background:#ffebeb; color:#e0332e; }
+.summary-description.success { color:#0a9e40; }
+.summary-description.warning { color:#f08c1a; }
+.summary-description.error { color:#e0332e; }
