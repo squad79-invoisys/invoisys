@@ -1,5 +1,7 @@
 using FluentAssertions;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Exceptions;
+using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Application.Fontes.CriarFonte;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Enums;
@@ -16,9 +18,11 @@ public sealed class CriarFonteUseCaseTests
         var currentUser = new CurrentUserStub(usuarioId);
         var repository = new FonteRepositoryStub();
         var unitOfWork = new UnitOfWorkStub();
+        var fonteUrlValidator = new FonteUrlValidatorStub();
         var useCase = new CriarFonteUseCase(
             new CriarFonteValidator(),
             currentUser,
+            fonteUrlValidator,
             repository,
             unitOfWork);
         var request = new CriarFonteRequest(
@@ -35,6 +39,35 @@ public sealed class CriarFonteUseCaseTests
         repository.Adicionada!.CriadoPorUsuarioId.Should().Be(usuarioId);
         response.Id.Should().Be(repository.Adicionada.Id);
         unitOfWork.Commits.Should().Be(1);
+        fonteUrlValidator.Chamadas.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ExecutarAsync_NaoDevePersistir_QuandoValidacaoRemotaFalhar()
+    {
+        var repository = new FonteRepositoryStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var fonteUrlValidator = new FonteUrlValidatorStub(
+            new BusinessException("URL inválida"));
+        var useCase = new CriarFonteUseCase(
+            new CriarFonteValidator(),
+            new CurrentUserStub(Guid.NewGuid()),
+            fonteUrlValidator,
+            repository,
+            unitOfWork);
+        var request = new CriarFonteRequest(
+            "Portal Fiscal",
+            "https://exemplo.com/feed.xml",
+            TipoFonte.Rss,
+            30);
+
+        var act = () => useCase.ExecutarAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<BusinessException>();
+        repository.Adicionada.Should().BeNull();
+        unitOfWork.Commits.Should().Be(0);
     }
 
     private sealed class CurrentUserStub(Guid usuarioId) : ICurrentUser
@@ -42,6 +75,24 @@ public sealed class CriarFonteUseCaseTests
         public Guid? UsuarioId { get; } = usuarioId;
         public string? Email => "teste@invoisys.local";
         public bool EstaAutenticado => true;
+    }
+
+    private sealed class FonteUrlValidatorStub(
+        Exception? exception = null) : IFonteUrlValidator
+    {
+        public int Chamadas { get; private set; }
+
+        public Task ValidarAsync(
+            string url,
+            TipoFonte tipo,
+            CancellationToken cancellationToken)
+        {
+            Chamadas++;
+
+            return exception is null
+                ? Task.CompletedTask
+                : Task.FromException(exception);
+        }
     }
 
     private sealed class FonteRepositoryStub : IFonteRepository

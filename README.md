@@ -99,6 +99,7 @@ git checkout -b feat/kan-41-cadastrar-fonte
 | Commit | [Conventional Commits](https://www.conventionalcommits.org/pt-br/) — `feat: adiciona filtro por status` |
 | Pull Request | Um por card, título `KAN-41: feat: adiciona cadastro de fonte`, destino `develop` |
 | Merge | Squash — um commit por card na `develop` |
+| CI | Todo PR para `develop` ou `main` compila em Release e roda os testes unitários; teste falhando ou warning de compilação bloqueia o merge |
 
 Os tipos são `feat`, `fix`, `chore`, `docs`, `test`, `ci` e `refactor`, usados tanto na branch quanto no commit.
 
