@@ -7,4 +7,5 @@ public sealed record AtualizarFonteRequest(
     string Url,
     TipoFonte Tipo,
     int PeriodicidadeMinutos,
+    string Contexto,
     string? SeletorConteudo = null);

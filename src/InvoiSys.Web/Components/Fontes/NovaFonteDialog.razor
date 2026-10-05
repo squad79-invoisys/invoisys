@@ -23,6 +23,13 @@
                         <MudSelectItem T="TipoFonte?" Value="@((TipoFonte?)tipo)">@FormatarTipo(tipo)</MudSelectItem>
                     }
                 </MudSelect>
+                <MudSelect T="string" @bind-Value="_model.Contexto" Label="Contexto" Variant="Variant.Outlined"
+                           Required="true" RequiredError="Selecione o contexto da fonte." Disabled="_salvando" aria-label="Contexto da fonte">
+                    <MudSelectItem T="string" Value="@("Legislação")">Legislação</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Documentação")">Documentação</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("MOC")">MOC</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Outro")">Outro</MudSelectItem>
+                </MudSelect>
                 <MudNumericField T="int?" @bind-Value="_model.PeriodicidadeMinutos" Label="Periodicidade (minutos)"
                                  Variant="Variant.Outlined" Required="true" RequiredError="Informe a periodicidade."
                                  Min="1" Max="43200" Validation="@(new Func<int?, string?>(ValidarPeriodicidade))" Disabled="_salvando"
@@ -60,13 +67,13 @@
     {
         if (_form is null) return;
         await _form.ValidateAsync();
-        if (!_form.IsValid || _model.Tipo is null || _model.PeriodicidadeMinutos is null) return;
+        if (!_form.IsValid || _model.Tipo is null || _model.PeriodicidadeMinutos is null || string.IsNullOrWhiteSpace(_model.Contexto)) return;
 
         _salvando = true;
         _erro = null;
         try
         {
-            var request = new CriarFonteRequest(_model.Nome.Trim(), _model.Url.Trim(), _model.Tipo.Value, _model.PeriodicidadeMinutos.Value);
+            var request = new CriarFonteRequest(_model.Nome.Trim(), _model.Url.Trim(), _model.Tipo.Value, _model.PeriodicidadeMinutos.Value, _model.Contexto.Trim());
             var response = await FontesClient.CriarAsync(request);
             if (!response.Sucesso)
             {

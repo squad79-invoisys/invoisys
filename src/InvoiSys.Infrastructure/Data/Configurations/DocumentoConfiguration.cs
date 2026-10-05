@@ -28,6 +28,10 @@ public sealed class DocumentoConfiguration : IEntityTypeConfiguration<Documento>
             .HasMaxLength(2048)
             .IsRequired();
 
+        builder.Property(x => x.Contexto)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(x => x.ConteudoTextual)
             .HasColumnType("text");
 
@@ -46,5 +50,6 @@ public sealed class DocumentoConfiguration : IEntityTypeConfiguration<Documento>
         builder.HasIndex(x => x.ExecucaoColetaId);
         builder.HasIndex(x => x.Hash);
         builder.HasIndex(x => x.UrlOriginal);
+        builder.HasIndex(x => x.Contexto);
     }
 }

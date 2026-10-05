@@ -119,6 +119,7 @@ public sealed class ObterResumoDashboardUseCaseTests
             "https://dfe-portal.svrs.rs.gov.br/aviso",
             "Notícia",
             "Portal DF-e",
+            "Legislação",
             DateTimeOffset.UtcNow.AddDays(-1),
             "Conteúdo de exemplo.",
             null,

@@ -17,6 +17,7 @@ public sealed class ListarDocumentosUseCase(
         var (itens, total) = await documentoRepository.ListarAsync(
             request.Pagina,
             request.TamanhoPagina,
+            request.Contexto,
             request.Busca,
             cancellationToken);
 

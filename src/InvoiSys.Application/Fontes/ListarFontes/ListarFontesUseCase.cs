@@ -19,6 +19,7 @@ public sealed class ListarFontesUseCase(
             request.TamanhoPagina,
             request.Tipo,
             request.Status,
+            request.Contexto,
             request.Busca,
             cancellationToken);
 

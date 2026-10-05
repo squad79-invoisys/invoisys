@@ -25,12 +25,19 @@ public sealed class DocumentoRepository(
     public async Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(
         int pagina,
         int tamanhoPagina,
+        string? contexto,
         string? busca,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Documentos
             .AsNoTracking()
             .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(contexto))
+        {
+            var contextoNormalizado = contexto.Trim();
+            query = query.Where(documento => documento.Contexto == contextoNormalizado);
+        }
 
         if (!string.IsNullOrWhiteSpace(busca))
         {

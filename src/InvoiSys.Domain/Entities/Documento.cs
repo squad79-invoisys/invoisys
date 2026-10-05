@@ -14,6 +14,7 @@ public sealed class Documento
         string urlOriginal,
         string tipo,
         string origem,
+        string contexto,
         DateTimeOffset? dataPublicacao,
         string? conteudoTextual,
         string? metadados,
@@ -31,12 +32,19 @@ public sealed class Documento
         if (string.IsNullOrWhiteSpace(hash))
             throw new DomainException("O hash do documento é obrigatório.");
 
+        if (string.IsNullOrWhiteSpace(contexto))
+            throw new DomainException("O contexto do documento é obrigatório.");
+
+        if (contexto.Trim().Length > 100)
+            throw new DomainException("O contexto do documento deve ter no máximo 100 caracteres.");
+
         Id = Guid.NewGuid();
         ExecucaoColetaId = execucaoColetaId;
         Titulo = titulo.Trim();
         UrlOriginal = urlOriginal.Trim();
         Tipo = tipo.Trim();
         Origem = origem.Trim();
+        Contexto = contexto.Trim();
         DataPublicacao = dataPublicacao;
         DataColeta = DateTimeOffset.UtcNow;
         ConteudoTextual = conteudoTextual;
@@ -50,6 +58,7 @@ public sealed class Documento
     public string UrlOriginal { get; private set; } = string.Empty;
     public string Tipo { get; private set; } = string.Empty;
     public string Origem { get; private set; } = string.Empty;
+    public string Contexto { get; private set; } = string.Empty;
     public DateTimeOffset? DataPublicacao { get; private set; }
     public DateTimeOffset DataColeta { get; private set; }
     public string? ConteudoTextual { get; private set; }
