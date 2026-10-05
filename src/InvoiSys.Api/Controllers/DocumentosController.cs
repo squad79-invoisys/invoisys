@@ -20,14 +20,15 @@ public sealed class DocumentosController(
         Summary = "Consulta um documento",
         Description = "Retorna conteúdo, origem e metadados do documento coletado.",
         OperationId = "ConsultarDocumento",
-        Tags = ["Documentos"])]
+        Tags = ["Documentos"])]     
     [SwaggerResponse(
         StatusCodes.Status200OK,
         "Documento consultado com sucesso.",
         typeof(ApiResponse<DocumentoResponse>))]
     public async Task<IActionResult> ConsultarPorId(
         Guid id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+        )
     {
         var response = await consultarDocumentoUseCase.Execute(
             id,

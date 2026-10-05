@@ -1,36 +1,583 @@
 @page "/coletas"
 @attribute [Authorize]
+@using System.Net
 @using InvoiSys.Application.Coletas
+@using InvoiSys.Application.Fontes
+@using InvoiSys.Domain.Enums
 @inject IColetasClient ColetasClient
+@inject IFontesClient FontesClient
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
 
 <PageTitle>Coletas - InvoiSys</PageTitle>
 
 <MudText Typo="Typo.h4">Coletas</MudText>
-<MudText Typo="Typo.body1">
-    Histórico das execuções realizadas pela plataforma.
+<MudText Typo="Typo.body1" Style="color:#000000;">
+    Analise e receba as informações coletadas.
 </MudText>
 
-<MudTable Items="_coletas" Hover="true" Class="mt-4">
-    <HeaderContent>
-        <MudTh>Início</MudTh>
-        <MudTh>Tipo</MudTh>
-        <MudTh>Status</MudTh>
-        <MudTh>Documentos</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Início">@context.Inicio.LocalDateTime</MudTd>
-        <MudTd DataLabel="Tipo">@context.TipoExecucao</MudTd>
-        <MudTd DataLabel="Status">@context.Status</MudTd>
-        <MudTd DataLabel="Documentos">@context.QuantidadeDocumentos</MudTd>
-    </RowTemplate>
-</MudTable>
+@if (!string.IsNullOrWhiteSpace(_erroCarregamento))
+{
+    <MudAlert Severity="Severity.Error" Class="mt-4">
+        @_erroCarregamento
+        <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="ml-2" OnClick="CarregarTudoAsync">
+            Tentar novamente
+        </MudButton>
+    </MudAlert>
+}
+
+@* ===== Filtros ===== *@
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudGrid Class="align-center">
+        <MudItem xs="12" md="3">
+            <MudTextField @bind-Value="_busca" Label="Buscar fonte..." Variant="Variant.Outlined"
+                          Margin="Margin.Dense" Immediate="true" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="string" @bind-Value="_tipo" Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var t in _tipos)
+                {
+                    <MudSelectItem Value="@t">@t</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var s in _statusOpcoes)
+                {
+                    <MudSelectItem Value="@s">@s</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            @* A API ainda não filtra por data: o filtro vale para as coletas já carregadas na tela. *@
+            <MudDatePicker @bind-Date="_dataColeta" Label="Data da coleta" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Clearable="true" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                       Disabled="@_carregando" OnClick="BuscarAsync">
+                Buscar
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_carregando)
+{
+    <MudProgressLinear Indeterminate="true" Class="mt-2" />
+}
+
+@* ===== Cards de resumo ===== *@
+<MudGrid Class="mt-2">
+    @foreach (var c in _resumo)
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 d-flex align-center" Outlined="true">
+                <MudAvatar Color="@c.Cor" Variant="Variant.Outlined" Class="mr-4">
+                    <MudIcon Icon="@c.Icone" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.body2">@c.Titulo</MudText>
+                    <MudText Typo="Typo.h4">@c.Valor</MudText>
+                    <MudText Typo="Typo.caption" Color="@c.Cor">@c.Legenda</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@* ===== Tabela + detalhes ===== *@
+<MudGrid Class="mt-2">
+    <MudItem xs="12" lg="8">
+        <MudPaper Outlined="true">
+            <MudTable Items="_filtradas" T="ColetaItem" Hover="true" Dense="true" Elevation="0"
+                      RowsPerPage="10"
+                      OnRowClick="SelecionarLinha"
+                      RowClassFunc="ClasseDaLinha"
+                      RowStyleFunc="@((f, i) => "cursor:pointer")">
+                <HeaderContent>
+                    <MudTh>Fonte</MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>URL</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Duração</MudTh>
+                    <MudTh>Início</MudTh>
+                    <MudTh>Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Fonte">
+                        <div class="d-flex align-center">
+                            <MudAvatar Size="Size.Small" Color="@CorDoStatus(context.Execucao.Status)" Variant="Variant.Outlined" Class="mr-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Small" />
+                            </MudAvatar>
+                            <MudText Typo="Typo.subtitle2">@context.Nome</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+                    <MudTd DataLabel="URL">@context.Url</MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Color="@CorDoStatus(context.Execucao.Status)" Variant="Variant.Text">
+                            @RotuloStatus(context.Execucao.Status)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Duração">@context.Duracao</MudTd>
+                    <MudTd DataLabel="Início">@context.Inicio</MudTd>
+                    <MudTd DataLabel="Ações">
+                        <MudTooltip Text="Ver detalhes">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                                           OnClick="@(() => Selecionar(context))" />
+                        </MudTooltip>
+                        @if (_podeExecutar)
+                        {
+                            <MudTooltip Text="Reprocessar coleta">
+                                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Size="Size.Small"
+                                               Disabled="@_executando"
+                                               OnClick="@(() => ReprocessarAsync(context))" />
+                            </MudTooltip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>
+                        @(_todas.Count == 0 && _status == "Todos"
+                            ? "Nenhuma coleta registrada ainda."
+                            : "Nenhuma coleta encontrada com esses filtros.")
+                    </MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 5, 10, 25 }"
+                                   RowsPerPageString="por página"
+                                   InfoFormat="Exibindo {first_item}-{last_item} de {all_items} coletas" />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+
+        @if (_totalNoServidor > _todas.Count)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                Exibindo as @_todas.Count coletas mais recentes de @_totalNoServidor no histórico.
+                Os filtros de busca, tipo e data são aplicados sobre essas coletas.
+            </MudText>
+        }
+    </MudItem>
+
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6">Detalhes da coleta</MudText>
+
+            @if (_selecionada is null)
+            {
+                <MudText Class="mt-4" Color="Color.Secondary">Selecione uma coleta na tabela.</MudText>
+            }
+            else
+            {
+                ColetaItem atual = _selecionada;
+
+                <div class="d-flex align-center mt-4">
+                    <MudAvatar Color="@CorDoStatus(atual.Execucao.Status)" Variant="Variant.Outlined" Class="mr-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Sensors" />
+                    </MudAvatar>
+                    <div class="flex-grow-1">
+                        <MudText Typo="Typo.subtitle1">@atual.Nome</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@atual.Tipo</MudText>
+                    </div>
+                    <MudChip T="string" Size="Size.Small" Color="@CorDoStatus(atual.Execucao.Status)" Variant="Variant.Text">
+                        @RotuloStatus(atual.Execucao.Status)
+                    </MudChip>
+                </div>
+
+                <MudDivider Class="my-3" />
+
+                @foreach (var (rotulo, valor) in Detalhes(atual))
+                {
+                    <div class="d-flex justify-space-between py-1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@rotulo</MudText>
+                        <MudText Typo="Typo.body2" Align="Align.Right">@valor</MudText>
+                    </div>
+                }
+
+                @if (atual.Execucao.Status == StatusExecucaoColeta.Falhou
+                    && !string.IsNullOrWhiteSpace(atual.Execucao.MensagemErro))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3">
+                        @atual.Execucao.MensagemErro
+                    </MudAlert>
+                }
+
+                @if (_podeExecutar)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4"
+                               StartIcon="@Icons.Material.Filled.Replay"
+                               Disabled="@_executando"
+                               OnClick="@(() => ReprocessarAsync(atual))">
+                        @(_executando ? "Executando..." : "Reprocessar coleta")
+                    </MudButton>
+                }
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* ===== Dica rápida ===== *@
+<MudPaper Class="pa-4 mt-2 d-flex align-center" Outlined="true">
+    <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Class="mr-4">
+        <MudIcon Icon="@Icons.Material.Filled.Lightbulb" />
+    </MudAvatar>
+    <div>
+        <MudText Typo="Typo.subtitle2">Dica rápida</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Use os filtros para encontrar fontes rapidamente e acompanhe o status para evitar interrupções nas coletas.
+        </MudText>
+    </div>
+</MudPaper>
 
 @code {
-    private IReadOnlyList<ExecucaoColetaResponse> _coletas = [];
+    // A API aceita no máximo 100 itens por página (ListarColetasValidator / ListarFontesValidator).
+    private const int TamanhoMaximoPagina = 100;
+
+    // ===== Modelos de exibição =====
+    // Uma linha da tabela = uma execução do histórico + os dados da fonte correspondente.
+    private sealed record ColetaItem(ExecucaoColetaResponse Execucao, FonteResponse? Fonte)
+    {
+        public string Nome => Fonte?.Nome ?? "Fonte não identificada";
+        public string Tipo => Fonte is null ? "-" : RotuloTipo(Fonte.Tipo);
+        public string Url => Fonte?.Url ?? "-";
+        public string Duracao => Execucao.Fim is { } fim ? FormatarDuracao(fim - Execucao.Inicio) : "-";
+        public string Inicio => FormatarDataHora(Execucao.Inicio);
+    }
+
+    private sealed record CardResumo(string Titulo, string Valor, string Legenda, string Icone, Color Cor);
+
+    // ===== Estado dos filtros =====
+    private string _busca = "";
+    private string _tipo = "Todos";
+    private string _status = "Todos";
+    private DateTime? _dataColeta;
+
+    private readonly string[] _tipos = ["Todos", .. Enum.GetValues<TipoFonte>().Select(RotuloTipo)];
+    private readonly string[] _statusOpcoes = ["Todos", "Sucesso", "Em andamento", "Erro"];
+
+    // ===== Estado da tela =====
+    private Dictionary<Guid, FonteResponse> _fontes = new();
+    private List<ColetaItem> _todas = new();
+    private List<ColetaItem> _filtradas = new();
+    private List<CardResumo> _resumo = new();
+    private ColetaItem? _selecionada;
+    private int _totalNoServidor;
+
+    private bool _carregando = true;
+    private bool _executando;
+    private bool _podeExecutar;
+    private string? _erroCarregamento;
 
     protected override async Task OnInitializedAsync()
     {
-        var response = await ColetasClient.ListarAsync();
-        _coletas = response.Dados?.Itens ?? [];
+        // O endpoint de execução exige perfil Administrador ou Operador.
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        _podeExecutar = estado.User.IsInRole("Administrador") || estado.User.IsInRole("Operador");
+
+        await CarregarTudoAsync();
+    }
+
+    // ===== Carregamento =====
+    private Task CarregarTudoAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            _fontes = await CarregarFontesAsync();
+            await Task.WhenAll(CarregarColetasAsync(), CarregarResumoAsync());
+            AplicarFiltros();
+        });
+
+    private Task BuscarAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            await CarregarColetasAsync();
+            AplicarFiltros();
+        });
+
+    private Task AtualizarAposExecucaoAsync(Guid? idParaSelecionar) =>
+        ComCarregamentoAsync(async () =>
+        {
+            await Task.WhenAll(CarregarColetasAsync(), CarregarResumoAsync());
+
+            if (idParaSelecionar is { } id)
+                _selecionada = _todas.FirstOrDefault(i => i.Execucao.Id == id) ?? _selecionada;
+
+            AplicarFiltros();
+        });
+
+    // Controla o indicador de carregamento e transforma falhas da API em mensagem na tela.
+    private async Task ComCarregamentoAsync(Func<Task> acao)
+    {
+        _carregando = true;
+        _erroCarregamento = null;
+
+        try
+        {
+            await acao();
+        }
+        catch (Refit.ApiException exception)
+        {
+            _erroCarregamento = await MensagemDeErroAsync(exception, "Não foi possível carregar as coletas.");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _erroCarregamento = "Não foi possível acessar a API. Tente novamente.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private async Task<Dictionary<Guid, FonteResponse>> CarregarFontesAsync()
+    {
+        var fontes = new Dictionary<Guid, FonteResponse>();
+        var pagina = 1;
+        var totalPaginas = 1;
+
+        while (pagina <= totalPaginas)
+        {
+            var resposta = await FontesClient.ListarAsync(pagina, TamanhoMaximoPagina);
+
+            if (resposta.Dados is not { } dados)
+                break;
+
+            foreach (var fonte in dados.Itens)
+                fontes[fonte.Id] = fonte;
+
+            totalPaginas = dados.TotalPaginas;
+            pagina++;
+        }
+
+        return fontes;
+    }
+
+    // O filtro de status é aplicado pela API; os demais filtros são aplicados aqui (AplicarFiltros).
+    private async Task CarregarColetasAsync()
+    {
+        var resposta = await ColetasClient.ListarAsync(1, TamanhoMaximoPagina, status: StatusDoFiltro());
+        var dados = resposta.Dados;
+
+        IReadOnlyList<ExecucaoColetaResponse> execucoes = dados?.Itens ?? [];
+
+        _totalNoServidor = dados?.Total ?? 0;
+        _todas = execucoes
+            .Select(execucao => new ColetaItem(execucao, _fontes.GetValueOrDefault(execucao.FonteId)))
+            .ToList();
+    }
+
+    // Não existe endpoint de resumo: cada contagem usa o total devolvido pela listagem (página de 1 item).
+    private async Task CarregarResumoAsync()
+    {
+        var contagens = await Task.WhenAll(
+            ContarAsync(null),
+            ContarAsync(StatusExecucaoColeta.Concluida),
+            ContarAsync(StatusExecucaoColeta.Falhou),
+            ContarAsync(StatusExecucaoColeta.EmAndamento));
+
+        _resumo = CriarResumo(contagens[0], contagens[1], contagens[2], contagens[3]);
+    }
+
+    private async Task<int> ContarAsync(StatusExecucaoColeta? status)
+    {
+        var resposta = await ColetasClient.ListarAsync(1, 1, status: status);
+        return resposta.Dados?.Total ?? 0;
+    }
+
+    // ===== Ações =====
+    private void AplicarFiltros()
+    {
+        var termo = _busca?.Trim() ?? "";
+
+        _filtradas = _todas
+            .Where(i => termo.Length == 0 || i.Nome.Contains(termo, StringComparison.OrdinalIgnoreCase))
+            .Where(i => _tipo == "Todos" || i.Tipo == _tipo)
+            .Where(i => _dataColeta is null || i.Execucao.Inicio.ToLocalTime().Date == _dataColeta.Value.Date)
+            .ToList();
+
+        var idAtual = _selecionada?.Execucao.Id;
+        _selecionada = _filtradas.FirstOrDefault(i => i.Execucao.Id == idAtual) ?? _filtradas.FirstOrDefault();
+    }
+
+    private async Task ReprocessarAsync(ColetaItem item)
+    {
+        if (_executando)
+            return;
+
+        _executando = true;
+        _selecionada = item;
+
+        try
+        {
+            // A API executa a coleta de forma síncrona: a chamada só volta quando ela termina.
+            var resposta = await ColetasClient.ExecutarAsync(item.Execucao.FonteId);
+            var nova = resposta.Dados;
+
+            Snackbar.Add(
+                nova is null
+                    ? "Coleta executada com sucesso."
+                    : $"Coleta concluída: {nova.QuantidadeDocumentos} documento(s) coletado(s).",
+                Severity.Success);
+
+            await AtualizarAposExecucaoAsync(nova?.Id);
+        }
+        catch (Refit.ApiException exception)
+        {
+            Snackbar.Add(
+                await MensagemDeErroAsync(exception, "Não foi possível executar a coleta."),
+                Severity.Error);
+
+            // Uma coleta que falha também gera um registro no histórico.
+            if (exception.StatusCode == HttpStatusCode.BadRequest)
+                await AtualizarAposExecucaoAsync(null);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível acessar a API. Tente novamente.", Severity.Error);
+        }
+        finally
+        {
+            _executando = false;
+        }
+    }
+
+    private void Selecionar(ColetaItem item) => _selecionada = item;
+
+    private void SelecionarLinha(TableRowClickEventArgs<ColetaItem> args) => _selecionada = args.Item;
+
+    private string ClasseDaLinha(ColetaItem item, int indice) =>
+        item.Execucao.Id == _selecionada?.Execucao.Id ? "mud-selected-item" : "";
+
+    // ===== Helpers de exibição =====
+    private StatusExecucaoColeta? StatusDoFiltro() => _status switch
+    {
+        "Sucesso" => StatusExecucaoColeta.Concluida,
+        "Em andamento" => StatusExecucaoColeta.EmAndamento,
+        "Erro" => StatusExecucaoColeta.Falhou,
+        _ => null
+    };
+
+    private static string RotuloStatus(StatusExecucaoColeta status) => status switch
+    {
+        StatusExecucaoColeta.Concluida => "Sucesso",
+        StatusExecucaoColeta.EmAndamento => "Em andamento",
+        StatusExecucaoColeta.Falhou => "Erro",
+        _ => status.ToString()
+    };
+
+    private static string RotuloTipo(TipoFonte tipo) => tipo switch
+    {
+        TipoFonte.Rss => "RSS",
+        TipoFonte.Atom => "Atom",
+        TipoFonte.WebHtml => "Web/HTML",
+        _ => tipo.ToString()
+    };
+
+    private static string RotuloTipoExecucao(TipoExecucao tipo) => tipo switch
+    {
+        TipoExecucao.Manual => "Manual",
+        TipoExecucao.Automatica => "Automática",
+        _ => tipo.ToString()
+    };
+
+    private static Color CorDoStatus(StatusExecucaoColeta status) => status switch
+    {
+        StatusExecucaoColeta.Concluida => Color.Success,
+        StatusExecucaoColeta.Falhou => Color.Error,
+        StatusExecucaoColeta.EmAndamento => Color.Info,
+        _ => Color.Default
+    };
+
+    private static IEnumerable<(string Rotulo, string Valor)> Detalhes(ColetaItem item)
+    {
+        var execucao = item.Execucao;
+
+        return new[]
+        {
+            ("Tipo", item.Tipo),
+            ("URL", item.Url),
+            ("Timestamp início", FormatarDataHoraCompleta(execucao.Inicio)),
+            ("Timestamp fim", execucao.Fim is { } fim ? FormatarDataHoraCompleta(fim) : "-"),
+            ("Tempo total", item.Duracao),
+            ("Execução", RotuloTipoExecucao(execucao.TipoExecucao)),
+            ("Documentos coletados", execucao.QuantidadeDocumentos.ToString()),
+        };
+    }
+
+    private static List<CardResumo> CriarResumo(int total, int concluidas, int falhas, int emAndamento) => new()
+    {
+        new("Total de coletas", total.ToString(), "Histórico completo", Icons.Material.Filled.Sensors, Color.Success),
+        new("Concluídas", concluidas.ToString(), LegendaPercentual(concluidas, total), Icons.Material.Filled.Check, Color.Success),
+        new("Com falha", falhas.ToString(), LegendaPercentual(falhas, total), Icons.Material.Filled.PriorityHigh, Color.Error),
+        new("Em andamento", emAndamento.ToString(), LegendaPercentual(emAndamento, total), Icons.Material.Filled.Sync, Color.Info),
+    };
+
+    private static string LegendaPercentual(int parte, int total) =>
+        total == 0
+            ? "Sem coletas registradas"
+            : $"{Math.Round(parte * 100.0 / total)}% do total de coletas";
+
+    private static string FormatarDuracao(TimeSpan duracao)
+    {
+        if (duracao < TimeSpan.Zero)
+            duracao = TimeSpan.Zero;
+
+        if (duracao.TotalSeconds < 1)
+            return "<1s";
+
+        if (duracao.TotalMinutes < 1)
+            return $"{(int)duracao.TotalSeconds}s";
+
+        if (duracao.TotalHours < 1)
+            return $"{(int)duracao.TotalMinutes}min {duracao.Seconds}s";
+
+        return $"{(int)duracao.TotalHours}h {duracao.Minutes}min";
+    }
+
+    // Datas chegam da API em UTC; a tela mostra no fuso do navegador.
+    private static string FormatarDataHora(DateTimeOffset valor)
+    {
+        var local = valor.ToLocalTime();
+        var hoje = DateTime.Now.Date;
+        var hora = local.ToString("HH:mm");
+
+        if (local.Date == hoje)
+            return $"Hoje, {hora}";
+
+        if (local.Date == hoje.AddDays(-1))
+            return $"Ontem, {hora}";
+
+        return local.ToString("dd/MM/yyyy, HH:mm");
+    }
+
+    private static string FormatarDataHoraCompleta(DateTimeOffset valor) =>
+        valor.ToLocalTime().ToString("dd/MM/yyyy, HH:mm:ss");
+
+    // As respostas de erro da API seguem o formato ApiResponse { mensagem }.
+    private static async Task<string> MensagemDeErroAsync(Refit.ApiException exception, string mensagemPadrao)
+    {
+        if (exception.StatusCode == HttpStatusCode.Unauthorized)
+            return "Sua sessão expirou. Entre novamente.";
+
+        if (exception.StatusCode == HttpStatusCode.Forbidden)
+            return "Você não tem permissão para realizar esta ação.";
+
+        try
+        {
+            var corpo = await exception.GetContentAsAsync<InvoiSys.Application.Common.Responses.ApiResponse<object>>();
+
+            if (!string.IsNullOrWhiteSpace(corpo?.Mensagem))
+                return corpo.Mensagem;
+        }
+        catch (Exception)
+        {
+            // Corpo ausente ou fora do formato esperado: usa a mensagem padrão.
+        }
+
+        return mensagemPadrao;
     }
 }
