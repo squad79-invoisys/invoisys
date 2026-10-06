@@ -11,6 +11,13 @@ internal sealed class AuthenticationService(
     ApplicationDbContext dbContext,
     IJwtTokenService jwtTokenService) : IAuthenticationService
 {
+    private const string MensagemCredenciaisInvalidas =
+        "E-mail ou senha inválidos.";
+
+    private const string MensagemContaBloqueada =
+        "Conta bloqueada temporariamente por excesso de tentativas. " +
+        "Tente novamente mais tarde.";
+
     public async Task<AuthenticationResult> LoginAsync(
         string email,
         string senha,
@@ -18,12 +25,23 @@ internal sealed class AuthenticationService(
     {
         var usuario = await userManager.FindByEmailAsync(email);
 
-        if (usuario is null ||
-            !usuario.Ativo ||
-            !await userManager.CheckPasswordAsync(usuario, senha))
+        if (usuario is null || !usuario.Ativo)
+            throw new UnauthorizedException(MensagemCredenciaisInvalidas);
+
+        if (await userManager.IsLockedOutAsync(usuario))
+            throw new UnauthorizedException(MensagemContaBloqueada);
+
+        if (!await userManager.CheckPasswordAsync(usuario, senha))
         {
-            throw new UnauthorizedException("E-mail ou senha inválidos.");
+            await userManager.AccessFailedAsync(usuario);
+
+            if (await userManager.IsLockedOutAsync(usuario))
+                throw new UnauthorizedException(MensagemContaBloqueada);
+
+            throw new UnauthorizedException(MensagemCredenciaisInvalidas);
         }
+
+        await userManager.ResetAccessFailedCountAsync(usuario);
 
         var perfis = await userManager.GetRolesAsync(usuario);
         var sessaoId = Guid.NewGuid();
