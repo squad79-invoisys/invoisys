@@ -1,11 +1,17 @@
 using FluentValidation;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Authentication;
+using InvoiSys.Application.Common.Exceptions;
+using InvoiSys.Domain.Enums;
+using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Autenticacao.Login;
 
 public sealed class LoginUseCase(
     IValidator<LoginRequest> validator,
-    IAuthenticationService authenticationService) : ILoginUseCase
+    IAuthenticationService authenticationService,
+    IAuditoriaService auditoriaService,
+    IUnitOfWork unitOfWork) : ILoginUseCase
 {
     public async Task<AuthUseCaseResult> ExecutarAsync(
         LoginRequest request,
@@ -13,10 +19,39 @@ public sealed class LoginUseCase(
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var resultado = await authenticationService.LoginAsync(
-            request.Email,
-            request.Senha,
+        AuthenticationResult resultado;
+
+        try
+        {
+            resultado = await authenticationService.LoginAsync(
+                request.Email,
+                request.Senha,
+                cancellationToken);
+        }
+        catch (UnauthorizedException)
+        {
+            var email = request.Email.Trim();
+            await auditoriaService.RegistrarAsync(
+                TipoEventoAuditoria.Autenticacao,
+                "Tentativa de login recusada",
+                email,
+                null,
+                null,
+                email,
+                cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken);
+            throw;
+        }
+
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Autenticacao,
+            "Login realizado",
+            resultado.Usuario.Email,
+            resultado.Usuario.Id,
+            resultado.Usuario.Id,
+            resultado.Usuario.Email,
             cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
 
         return new AuthUseCaseResult(
             new LoginResponse(

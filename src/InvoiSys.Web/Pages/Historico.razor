@@ -1,0 +1,281 @@
+@page "/historico"
+@attribute [Authorize]
+@implements IDisposable
+@using InvoiSys.Application.Common.Authentication
+@using InvoiSys.Application.Historico
+@using InvoiSys.Application.Historico.ListarHistorico
+@using InvoiSys.Domain.Enums
+@using InvoiSys.Web.Components.Fontes
+@inject IHistoricoClient HistoricoClient
+@inject IUsuariosClient UsuariosClient
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<PageTitle>Histórico - InvoiSys</PageTitle>
+
+<AuthorizeView Roles="Administrador" Context="autenticacao">
+    <Authorized>
+        <section class="historico-page" aria-label="Histórico">
+            <header class="historico-header">
+                <MudText Typo="Typo.h3" Class="historico-title">Histórico</MudText>
+                <MudText Typo="Typo.body1">Acompanhe as ações, coletas e alterações realizadas na plataforma</MudText>
+            </header>
+
+            <div class="historico-filter-bar">
+                <MudTextField T="string" @bind-Value="_busca" @bind-Value:after="RecarregarAsync"
+                              Placeholder="Buscar atividade, objeto ou responsável..." Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Immediate="true" DebounceInterval="350" Clearable="true"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search"
+                              aria-label="Buscar no histórico" />
+                <MudSelect T="TipoEventoAuditoria?" @bind-Value="_tipo" @bind-Value:after="RecarregarAsync"
+                           Label="Tipo de evento" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           aria-label="Filtrar por tipo de evento">
+                    <MudSelectItem T="TipoEventoAuditoria?" Value="@(null)">Todos</MudSelectItem>
+                    @foreach (var tipo in Enum.GetValues<TipoEventoAuditoria>())
+                    {
+                        <MudSelectItem T="TipoEventoAuditoria?" Value="@tipo">@FormatarTipo(tipo)</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Guid?" @bind-Value="_usuarioId" @bind-Value:after="RecarregarAsync"
+                           Label="Responsável" Variant="Variant.Outlined" Margin="Margin.Dense"
+                           aria-label="Filtrar por responsável">
+                    <MudSelectItem T="Guid?" Value="@(null)">Todos</MudSelectItem>
+                    @foreach (var usuario in _usuarios)
+                    {
+                        <MudSelectItem T="Guid?" Value="@usuario.Id">@usuario.Nome</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDateRangePicker @bind-DateRange="_periodo" @bind-DateRange:after="RecarregarAsync"
+                                    Label="Período" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                    Clearable="true" DateFormat="dd/MM/yyyy" aria-label="Filtrar por período" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.FileDownload"
+                           OnClick="ExportarAsync" Disabled="_exportando" Class="exportar-button">
+                    @(_exportando ? "Exportando..." : "Exportar")
+                </MudButton>
+            </div>
+
+            <div class="historico-summary" aria-label="Totais do histórico">
+                <SummaryCard Title="Total de eventos" Value="@_totais.Total" Icon="@Icons.Material.Outlined.Schedule"
+                             Tone="success" Description="No filtro aplicado" />
+                <SummaryCard Title="Coletas" Value="@_totais.Coletas" Icon="@Icons.Material.Outlined.CloudDownload"
+                             Tone="success" Description="@DescreverParticipacao(_totais.Coletas)" />
+                <SummaryCard Title="Alterações" Value="@_totais.Alteracoes" Icon="@Icons.Material.Outlined.Edit"
+                             Tone="warning" Description="@DescreverParticipacao(_totais.Alteracoes)" />
+                <SummaryCard Title="Autenticações" Value="@_totais.Autenticacoes" Icon="@Icons.Material.Outlined.Login"
+                             Tone="error" Description="@DescreverParticipacao(_totais.Autenticacoes)" />
+            </div>
+
+            <div class="historico-table-card">
+                <MudTable @ref="_tabela" T="RegistroAuditoriaResponse" ServerData="CarregarEventosAsync" Hover="true"
+                          Breakpoint="Breakpoint.Sm" RowsPerPage="20" Elevation="0" Class="historico-table">
+                    <HeaderContent>
+                        <MudTh>Data e hora</MudTh><MudTh>Tipo</MudTh><MudTh>Atividade</MudTh>
+                        <MudTh>Objeto</MudTh><MudTh>Responsável</MudTh><MudTh>Endereço IP</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Data e hora">@context.OcorridoEm.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                        <MudTd DataLabel="Tipo"><span class="tipo-badge @ObterClasseTipo(context.Tipo)">@FormatarTipo(context.Tipo)</span></MudTd>
+                        <MudTd DataLabel="Atividade"><span class="atividade" title="@context.Atividade">@context.Atividade</span></MudTd>
+                        <MudTd DataLabel="Objeto"><span title="@context.Objeto">@context.Objeto</span></MudTd>
+                        <MudTd DataLabel="Responsável"><span title="@context.Responsavel">@context.Responsavel</span></MudTd>
+                        <MudTd DataLabel="Endereço IP">@(context.EnderecoIp ?? "—")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="empty-state">
+                            <MudIcon Icon="@Icons.Material.Outlined.History" Size="Size.Large" />
+                            <MudText Typo="Typo.subtitle1">Nenhum evento encontrado</MudText>
+                            <MudText Typo="Typo.body2">Ajuste os filtros ou aguarde novas atividades na plataforma.</MudText>
+                        </div>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="@(new[] { 20, 50, 100 })" RowsPerPageString="por página"
+                                       InfoFormat="Exibindo {first_item}–{last_item} de {all_items} eventos" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </section>
+    </Authorized>
+    <NotAuthorized>
+        <div class="empty-state">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Large" />
+            <MudText Typo="Typo.subtitle1">Acesso restrito</MudText>
+            <MudText Typo="Typo.body2">O histórico de atividades está disponível apenas para administradores.</MudText>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private MudTable<RegistroAuditoriaResponse>? _tabela;
+    private IReadOnlyList<UserSummary> _usuarios = [];
+    private TotaisHistoricoResponse _totais = new(0, 0, 0, 0);
+    private string? _busca;
+    private TipoEventoAuditoria? _tipo;
+    private Guid? _usuarioId;
+    private DateRange? _periodo;
+    private bool _exportando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null ||
+            !(await AuthenticationState).User.IsInRole("Administrador"))
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await UsuariosClient.ListarAsync(_cancellationTokenSource.Token);
+            _usuarios = response.Dados ?? [];
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Refit.ApiException exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível carregar a lista de responsáveis.", Severity.Warning);
+        }
+    }
+
+    private async Task<TableData<RegistroAuditoriaResponse>> CarregarEventosAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        var vazio = new TableData<RegistroAuditoriaResponse> { Items = [], TotalItems = 0 };
+        using var cancelamento = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            _cancellationTokenSource.Token);
+
+        try
+        {
+            var (de, ate) = ObterPeriodo();
+            var response = await HistoricoClient.ListarAsync(
+                pagina: state.Page + 1,
+                tamanhoPagina: state.PageSize,
+                tipo: _tipo,
+                usuarioId: _usuarioId,
+                de: de,
+                ate: ate,
+                busca: string.IsNullOrWhiteSpace(_busca) ? null : _busca,
+                cancellationToken: cancelamento.Token);
+
+            if (!response.Sucesso || response.Dados is null)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return vazio;
+            }
+
+            // Os cards ficam fora da tabela; atualiza a página para refletir os novos totais.
+            _totais = response.Dados.Totais;
+            StateHasChanged();
+            return new TableData<RegistroAuditoriaResponse>
+            {
+                Items = response.Dados.Eventos.Itens,
+                TotalItems = response.Dados.Eventos.Total
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return vazio;
+        }
+        catch (Refit.ApiException exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível carregar o histórico. Tente novamente.", Severity.Error);
+            return vazio;
+        }
+    }
+
+    private async Task RecarregarAsync()
+    {
+        if (_tabela is null)
+            return;
+
+        _tabela.NavigateTo(Page.First);
+        await _tabela.ReloadServerData();
+    }
+
+    private async Task ExportarAsync()
+    {
+        _exportando = true;
+        try
+        {
+            var (de, ate) = ObterPeriodo();
+            using var response = await HistoricoClient.ExportarAsync(
+                tipo: _tipo,
+                usuarioId: _usuarioId,
+                de: de,
+                ate: ate,
+                busca: string.IsNullOrWhiteSpace(_busca) ? null : _busca,
+                cancellationToken: _cancellationTokenSource.Token);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Não foi possível exportar o histórico.", Severity.Error);
+                return;
+            }
+
+            var conteudo = await response.Content.ReadAsByteArrayAsync(_cancellationTokenSource.Token);
+            var nomeArquivo = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? $"historico-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+
+            await JS.InvokeVoidAsync("invoisys.baixarArquivo", nomeArquivo, "text/csv", conteudo);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (HttpRequestException exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível exportar o histórico.", Severity.Error);
+        }
+        finally
+        {
+            _exportando = false;
+        }
+    }
+
+    /// <summary>
+    /// Converte o período escolhido (datas locais) em instantes: do início do
+    /// primeiro dia ao último instante do dia final, no fuso do navegador.
+    /// </summary>
+    private (DateTimeOffset? De, DateTimeOffset? Ate) ObterPeriodo()
+    {
+        DateTimeOffset? de = _periodo?.Start is { } inicio
+            ? new DateTimeOffset(DateTime.SpecifyKind(inicio.Date, DateTimeKind.Local))
+            : null;
+        DateTimeOffset? ate = _periodo?.End is { } fim
+            ? new DateTimeOffset(DateTime.SpecifyKind(fim.Date.AddDays(1).AddTicks(-1), DateTimeKind.Local))
+            : null;
+
+        return (de, ate);
+    }
+
+    private string DescreverParticipacao(int quantidade) =>
+        _totais.Total == 0 ? "0% dos eventos" : $"{quantidade * 100d / _totais.Total:0.#}% dos eventos";
+
+    private static string FormatarTipo(TipoEventoAuditoria tipo) => tipo switch
+    {
+        TipoEventoAuditoria.Coleta => "Coleta",
+        TipoEventoAuditoria.Fonte => "Fonte",
+        TipoEventoAuditoria.Autenticacao => "Autenticação",
+        TipoEventoAuditoria.Usuario => "Usuário",
+        _ => tipo.ToString()
+    };
+
+    private static string ObterClasseTipo(TipoEventoAuditoria tipo) => tipo switch
+    {
+        TipoEventoAuditoria.Coleta => "tipo-coleta",
+        TipoEventoAuditoria.Autenticacao => "tipo-autenticacao",
+        _ => "tipo-alteracao"
+    };
+
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+    }
+}

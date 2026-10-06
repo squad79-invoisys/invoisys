@@ -52,6 +52,12 @@ builder.Services
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
+    .AddRefitClient<IHistoricoClient>()
+    .ConfigureHttpClient(client =>
+        client.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
+
+builder.Services
     .AddRefitClient<IUsuariosClient>()
     .ConfigureHttpClient(client =>
         client.BaseAddress = new Uri(apiBaseUrl))

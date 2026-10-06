@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Application.Fontes.AtualizarFonte;
@@ -179,6 +180,7 @@ public sealed class AtualizarFonteUseCaseTests
             new CurrentUserStub(Guid.NewGuid()),
             validator,
             new FonteRepositoryStub(fonte),
+            new AuditoriaServiceStub(),
             unitOfWork);
 
     private sealed class CurrentUserStub(Guid usuarioId) : ICurrentUser
@@ -241,6 +243,25 @@ public sealed class AtualizarFonteUseCaseTests
         {
             Commits++;
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class AuditoriaServiceStub : IAuditoriaService
+    {
+        public List<(TipoEventoAuditoria Tipo, string Atividade, string Objeto)> Registros { get; } = [];
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
+        }
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, Guid? usuarioId, string responsavel, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
         }
     }
 }

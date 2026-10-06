@@ -11,7 +11,8 @@ public interface IAuthenticationService
         string refreshToken,
         CancellationToken cancellationToken);
 
-    Task LogoutAsync(
+    /// <summary>Revoga a sessão e retorna o usuário dono dela, ou null se a sessão não existir.</summary>
+    Task<SessaoEncerrada?> LogoutAsync(
         string refreshToken,
         CancellationToken cancellationToken);
 }

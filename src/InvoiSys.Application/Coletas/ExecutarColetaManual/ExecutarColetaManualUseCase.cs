@@ -1,4 +1,5 @@
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Domain.Entities;
@@ -13,6 +14,7 @@ public sealed class ExecutarColetaManualUseCase(
     IExecucaoColetaRepository execucaoRepository,
     IDocumentoRepository documentoRepository,
     ICollectorResolver collectorResolver,
+    IAuditoriaService auditoriaService,
     IUnitOfWork unitOfWork) : IExecutarColetaManualUseCase
 {
     public async Task<ExecucaoColetaResponse> ExecutarAsync(
@@ -56,6 +58,12 @@ public sealed class ExecutarColetaManualUseCase(
             await documentoRepository.AdicionarVariosAsync(documentos, cancellationToken);
 
             execucao.Concluir(documentos.Count);
+            await auditoriaService.RegistrarAsync(
+                TipoEventoAuditoria.Coleta,
+                $"Coleta manual concluída ({documentos.Count} documentos)",
+                fonte.Nome,
+                fonte.Id,
+                cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
 
             return ExecucaoColetaResponse.FromEntity(execucao);
@@ -67,6 +75,12 @@ public sealed class ExecutarColetaManualUseCase(
         catch (Exception exception)
         {
             execucao.RegistrarFalha(exception.Message);
+            await auditoriaService.RegistrarAsync(
+                TipoEventoAuditoria.Coleta,
+                "Coleta manual com falha",
+                fonte.Nome,
+                fonte.Id,
+                cancellationToken);
             await unitOfWork.CommitAsync(cancellationToken);
             throw new BusinessException("A coleta não pôde ser concluída.");
         }

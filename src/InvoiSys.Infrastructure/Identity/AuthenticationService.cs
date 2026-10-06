@@ -107,24 +107,29 @@ internal sealed class AuthenticationService(
                 perfis.ToList()));
     }
 
-    public async Task LogoutAsync(
+    public async Task<SessaoEncerrada?> LogoutAsync(
         string refreshToken,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
-            return;
+            return null;
 
         var hash = JwtTokenService.GerarHash(refreshToken);
 
         var sessao = await dbContext.RefreshTokens
+            .Include(token => token.Usuario)
             .FirstOrDefaultAsync(
                 token => token.TokenHash == hash,
                 cancellationToken);
 
-        if (sessao is null)
-            return;
+        if (sessao is null || sessao.RevogadoEm is not null)
+            return null;
 
         sessao.RevogadoEm = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new SessaoEncerrada(
+            sessao.UserId,
+            sessao.Usuario.Email ?? string.Empty);
     }
 }

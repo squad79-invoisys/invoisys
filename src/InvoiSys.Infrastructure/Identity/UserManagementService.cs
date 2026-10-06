@@ -84,7 +84,7 @@ internal sealed class UserManagementService(
         return response;
     }
 
-    public async Task DefinirStatusAsync(
+    public async Task<UserSummary> DefinirStatusAsync(
         Guid usuarioId,
         bool ativo,
         CancellationToken cancellationToken)
@@ -101,9 +101,11 @@ internal sealed class UserManagementService(
 
         if (!ativo)
             await RevogarSessoesAsync(usuario.Id, cancellationToken);
+
+        return await CriarResumoAsync(usuario);
     }
 
-    public async Task RedefinirSenhaAsync(
+    public async Task<UserSummary> RedefinirSenhaAsync(
         Guid usuarioId,
         string novaSenha,
         CancellationToken cancellationToken)
@@ -121,6 +123,20 @@ internal sealed class UserManagementService(
             throw new BusinessException(JuntarErros(result));
 
         await RevogarSessoesAsync(usuario.Id, cancellationToken);
+
+        return await CriarResumoAsync(usuario);
+    }
+
+    private async Task<UserSummary> CriarResumoAsync(ApplicationUser usuario)
+    {
+        var perfis = await userManager.GetRolesAsync(usuario);
+
+        return new UserSummary(
+            usuario.Id,
+            usuario.Nome,
+            usuario.Email ?? string.Empty,
+            usuario.Ativo,
+            perfis.ToList());
     }
 
     private async Task RevogarSessoesAsync(

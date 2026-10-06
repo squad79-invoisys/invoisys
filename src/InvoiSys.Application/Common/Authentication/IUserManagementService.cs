@@ -12,12 +12,12 @@ public interface IUserManagementService
     Task<IReadOnlyList<UserSummary>> ListarAsync(
         CancellationToken cancellationToken);
 
-    Task DefinirStatusAsync(
+    Task<UserSummary> DefinirStatusAsync(
         Guid usuarioId,
         bool ativo,
         CancellationToken cancellationToken);
 
-    Task RedefinirSenhaAsync(
+    Task<UserSummary> RedefinirSenhaAsync(
         Guid usuarioId,
         string novaSenha,
         CancellationToken cancellationToken);

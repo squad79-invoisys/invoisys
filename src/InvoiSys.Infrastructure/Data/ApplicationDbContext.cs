@@ -14,6 +14,7 @@ public sealed class ApplicationDbContext(
     public DbSet<ExecucaoColeta> ExecucoesColeta => Set<ExecucaoColeta>();
     public DbSet<Documento> Documentos => Set<Documento>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<RegistroAuditoria> RegistrosAuditoria => Set<RegistroAuditoria>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

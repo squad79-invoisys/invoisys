@@ -1,7 +1,9 @@
 using FluentValidation;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Fontes;
+using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Fontes.AtualizarFonte;
@@ -11,6 +13,7 @@ public sealed class AtualizarFonteUseCase(
     ICurrentUser currentUser,
     IFonteUrlValidator fonteUrlValidator,
     IFonteRepository fonteRepository,
+    IAuditoriaService auditoriaService,
     IUnitOfWork unitOfWork) : IAtualizarFonteUseCase
 {
     public async Task<FonteResponse> Execute(
@@ -51,6 +54,12 @@ public sealed class AtualizarFonteUseCase(
             request.Contexto,
             request.SeletorConteudo);
 
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Fonte,
+            "Fonte alterada",
+            fonte.Nome,
+            fonte.Id,
+            cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
 
         return FonteResponse.FromEntity(fonte);

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Application.Fontes.CriarFonte;
@@ -19,11 +20,13 @@ public sealed class CriarFonteUseCaseTests
         var repository = new FonteRepositoryStub();
         var unitOfWork = new UnitOfWorkStub();
         var fonteUrlValidator = new FonteUrlValidatorStub();
+        var auditoria = new AuditoriaServiceStub();
         var useCase = new CriarFonteUseCase(
             new CriarFonteValidator(),
             currentUser,
             fonteUrlValidator,
             repository,
+            auditoria,
             unitOfWork);
         var request = new CriarFonteRequest(
             "Portal Fiscal",
@@ -43,6 +46,8 @@ public sealed class CriarFonteUseCaseTests
         response.Id.Should().Be(repository.Adicionada.Id);
         unitOfWork.Commits.Should().Be(1);
         fonteUrlValidator.Chamadas.Should().Be(1);
+        auditoria.Registros.Should().ContainSingle()
+            .Which.Should().Be((TipoEventoAuditoria.Fonte, "Fonte cadastrada", "Portal Fiscal"));
     }
 
     [Fact]
@@ -52,11 +57,13 @@ public sealed class CriarFonteUseCaseTests
         var unitOfWork = new UnitOfWorkStub();
         var fonteUrlValidator = new FonteUrlValidatorStub(
             new BusinessException("URL inválida"));
+        var auditoria = new AuditoriaServiceStub();
         var useCase = new CriarFonteUseCase(
             new CriarFonteValidator(),
             new CurrentUserStub(Guid.NewGuid()),
             fonteUrlValidator,
             repository,
+            auditoria,
             unitOfWork);
         var request = new CriarFonteRequest(
             "Portal Fiscal",
@@ -72,6 +79,7 @@ public sealed class CriarFonteUseCaseTests
         await act.Should().ThrowAsync<BusinessException>();
         repository.Adicionada.Should().BeNull();
         unitOfWork.Commits.Should().Be(0);
+        auditoria.Registros.Should().BeEmpty();
     }
 
     private sealed class CurrentUserStub(Guid usuarioId) : ICurrentUser
@@ -131,6 +139,25 @@ public sealed class CriarFonteUseCaseTests
         {
             Commits++;
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class AuditoriaServiceStub : IAuditoriaService
+    {
+        public List<(TipoEventoAuditoria Tipo, string Atividade, string Objeto)> Registros { get; } = [];
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
+        }
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, Guid? usuarioId, string responsavel, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
         }
     }
 }
