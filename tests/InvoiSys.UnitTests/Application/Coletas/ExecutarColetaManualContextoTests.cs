@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Enums;
@@ -17,7 +18,7 @@ public sealed class ExecutarColetaManualContextoTests
         var documentos = new DocumentosStub();
         var useCase = new ExecutarColetaManualUseCase(
             new UsuarioStub(), new FonteStub(fonte), new ExecucoesStub(), documentos,
-            new CollectorResolverStub(), new UnitOfWorkStub());
+            new CollectorResolverStub(), new AuditoriaServiceStub(), new UnitOfWorkStub());
 
         await useCase.ExecutarAsync(fonte.Id, TestContext.Current.CancellationToken);
 
@@ -87,5 +88,24 @@ public sealed class ExecutarColetaManualContextoTests
     private sealed class UnitOfWorkStub : IUnitOfWork
     {
         public Task<int> CommitAsync(CancellationToken token) => Task.FromResult(1);
+    }
+
+    private sealed class AuditoriaServiceStub : IAuditoriaService
+    {
+        public List<(TipoEventoAuditoria Tipo, string Atividade, string Objeto)> Registros { get; } = [];
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
+        }
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, Guid? usuarioId, string responsavel, CancellationToken cancellationToken)
+        {
+            Registros.Add((tipo, atividade, objeto));
+            return Task.CompletedTask;
+        }
     }
 }

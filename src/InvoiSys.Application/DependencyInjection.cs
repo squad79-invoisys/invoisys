@@ -5,6 +5,7 @@ using InvoiSys.Application.Autenticacao.Refresh;
 using InvoiSys.Application.Coletas.ConsultarColeta;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
 using InvoiSys.Application.Coletas.ListarColetas;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Dashboard.ObterResumo;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
@@ -13,6 +14,8 @@ using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
 using InvoiSys.Application.Fontes.ListarFontes;
+using InvoiSys.Application.Historico.ExportarHistorico;
+using InvoiSys.Application.Historico.ListarHistorico;
 using InvoiSys.Application.Usuarios.AlterarStatusUsuario;
 using InvoiSys.Application.Usuarios.CriarUsuario;
 using InvoiSys.Application.Usuarios.ListarUsuarios;
@@ -26,6 +29,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining(typeof(DependencyInjection));
+
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
 
         services.AddScoped<ICriarFonteUseCase, CriarFonteUseCase>();
         services.AddScoped<IConsultarFonteUseCase, ConsultarFonteUseCase>();
@@ -41,6 +46,9 @@ public static class DependencyInjection
         services.AddScoped<IListarDocumentosUseCase, ListarDocumentosUseCase>();
 
         services.AddScoped<IObterResumoDashboardUseCase, ObterResumoDashboardUseCase>();
+
+        services.AddScoped<IListarHistoricoUseCase, ListarHistoricoUseCase>();
+        services.AddScoped<IExportarHistoricoUseCase, ExportarHistoricoUseCase>();
 
         services.AddScoped<ILoginUseCase, LoginUseCase>();
         services.AddScoped<IRefreshTokenUseCase, RefreshTokenUseCase>();

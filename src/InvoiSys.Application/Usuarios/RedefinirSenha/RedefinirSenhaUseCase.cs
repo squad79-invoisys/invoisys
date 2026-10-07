@@ -1,11 +1,16 @@
 using FluentValidation;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Authentication;
+using InvoiSys.Domain.Enums;
+using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Usuarios.RedefinirSenha;
 
 public sealed class RedefinirSenhaUseCase(
     IValidator<RedefinirSenhaRequest> validator,
-    IUserManagementService userManagementService) : IRedefinirSenhaUseCase
+    IUserManagementService userManagementService,
+    IAuditoriaService auditoriaService,
+    IUnitOfWork unitOfWork) : IRedefinirSenhaUseCase
 {
     public async Task Execute(
         Guid id,
@@ -14,9 +19,17 @@ public sealed class RedefinirSenhaUseCase(
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        await userManagementService.RedefinirSenhaAsync(
+        var usuario = await userManagementService.RedefinirSenhaAsync(
             id,
             request.NovaSenha,
             cancellationToken);
+
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Usuario,
+            "Senha redefinida",
+            usuario.Email,
+            usuario.Id,
+            cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
     }
 }

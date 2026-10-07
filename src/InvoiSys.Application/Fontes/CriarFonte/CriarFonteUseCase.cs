@@ -1,8 +1,10 @@
 using FluentValidation;
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Fontes;
 using InvoiSys.Domain.Entities;
+using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Fontes.CriarFonte;
@@ -12,6 +14,7 @@ public sealed class CriarFonteUseCase(
     ICurrentUser currentUser,
     IFonteUrlValidator fonteUrlValidator,
     IFonteRepository fonteRepository,
+    IAuditoriaService auditoriaService,
     IUnitOfWork unitOfWork) : ICriarFonteUseCase
 {
     public async Task<FonteResponse> ExecutarAsync(
@@ -39,6 +42,12 @@ public sealed class CriarFonteUseCase(
             request.SeletorConteudo);
 
         await fonteRepository.AdicionarAsync(fonte, cancellationToken);
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Fonte,
+            "Fonte cadastrada",
+            fonte.Nome,
+            fonte.Id,
+            cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
 
         return FonteResponse.FromEntity(fonte);

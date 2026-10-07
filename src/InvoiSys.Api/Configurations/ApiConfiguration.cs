@@ -27,6 +27,7 @@ public static class ApiConfiguration
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<IContextoRequisicao, ContextoRequisicao>();
 
         services.AddApplication();
         services.AddInfrastructure(configuration);

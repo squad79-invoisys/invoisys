@@ -1,5 +1,7 @@
 using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Common.Exceptions;
+using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
 
 namespace InvoiSys.Application.Fontes.AlterarStatusFonte;
@@ -7,6 +9,7 @@ namespace InvoiSys.Application.Fontes.AlterarStatusFonte;
 public sealed class AlterarStatusFonteUseCase(
     ICurrentUser currentUser,
     IFonteRepository fonteRepository,
+    IAuditoriaService auditoriaService,
     IUnitOfWork unitOfWork) : IAlterarStatusFonteUseCase
 {
     public async Task Execute(
@@ -25,6 +28,12 @@ public sealed class AlterarStatusFonteUseCase(
         else
             fonte.Desativar(usuarioId);
 
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Fonte,
+            ativa ? "Fonte ativada" : "Fonte desativada",
+            fonte.Nome,
+            fonte.Id,
+            cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
     }
 }
