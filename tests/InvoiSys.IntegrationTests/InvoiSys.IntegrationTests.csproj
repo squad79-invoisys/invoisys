@@ -6,6 +6,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\InvoiSys.AppHost\InvoiSys.AppHost.csproj" />
     <ProjectReference Include="..\..\src\InvoiSys.Application\InvoiSys.Application.csproj" />
+    <ProjectReference Include="..\..\src\InvoiSys.Domain\InvoiSys.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Necessário para o servidor de feeds falso (Kestrel) usado nos testes. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" />
