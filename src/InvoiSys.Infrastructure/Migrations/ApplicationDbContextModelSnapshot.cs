@@ -31,6 +31,11 @@ namespace InvoiSys.Infrastructure.Migrations
                     b.Property<string>("ConteudoTextual")
                         .HasColumnType("text");
 
+                    b.Property<string>("Contexto")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTimeOffset>("DataColeta")
                         .HasColumnType("timestamp with time zone");
 
@@ -69,6 +74,8 @@ namespace InvoiSys.Infrastructure.Migrations
                         .HasColumnType("character varying(2048)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Contexto");
 
                     b.HasIndex("ExecucaoColetaId");
 
@@ -135,6 +142,11 @@ namespace InvoiSys.Infrastructure.Migrations
                     b.Property<Guid?>("AlteradoPorUsuarioId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Contexto")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTimeOffset>("CriadoEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -169,6 +181,8 @@ namespace InvoiSys.Infrastructure.Migrations
                         .HasColumnType("character varying(2048)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Contexto");
 
                     b.HasIndex("Status");
 
