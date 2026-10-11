@@ -46,6 +46,7 @@ public sealed class ExecutarColetaManualUseCase(
                     documento.UrlOriginal,
                     documento.Tipo,
                     documento.Origem,
+                    fonte.Contexto,
                     documento.DataPublicacao,
                     documento.ConteudoTextual,
                     documento.Metadados,

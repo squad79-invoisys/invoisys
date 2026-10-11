@@ -35,6 +35,7 @@ public sealed class CriarFonteUseCase(
             request.Tipo,
             request.PeriodicidadeMinutos,
             usuarioId,
+            request.Contexto,
             request.SeletorConteudo);
 
         await fonteRepository.AdicionarAsync(fonte, cancellationToken);

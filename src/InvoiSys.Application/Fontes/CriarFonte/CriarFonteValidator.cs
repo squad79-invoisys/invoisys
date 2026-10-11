@@ -30,6 +30,14 @@ public sealed class CriarFonteValidator : AbstractValidator<CriarFonteRequest>
             .GreaterThan(0)
             .LessThanOrEqualTo(43_200);
 
+        RuleFor(x => x.Contexto)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty()
+            .Must(contexto => !string.IsNullOrWhiteSpace(contexto))
+            .WithMessage("O contexto da fonte é obrigatório.")
+            .Must(contexto => contexto.Trim().Length <= 100)
+            .WithMessage("O contexto da fonte deve ter no máximo 100 caracteres.");
+
         RuleFor(x => x.SeletorConteudo)
             .MaximumLength(200)
             .When(x => !string.IsNullOrWhiteSpace(x.SeletorConteudo));

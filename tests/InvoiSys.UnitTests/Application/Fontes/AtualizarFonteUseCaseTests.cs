@@ -27,7 +27,8 @@ public sealed class AtualizarFonteUseCaseTests
             "Portal atualizado",
             alterarUrl ? "https://novo.exemplo.com/feed" : fonte.Url,
             alterarTipo ? TipoFonte.Atom : fonte.Tipo,
-            60);
+            60,
+            "Legislação");
 
         await useCase.Execute(
             fonte.Id,
@@ -51,7 +52,8 @@ public sealed class AtualizarFonteUseCaseTests
             "Outro nome",
             fonte.Url,
             fonte.Tipo,
-            120);
+            120,
+            "Legislação");
 
         await useCase.Execute(
             fonte.Id,
@@ -65,6 +67,23 @@ public sealed class AtualizarFonteUseCaseTests
     }
 
     [Fact]
+    public async Task Execute_DevePersistirContextoSemRevalidarOrigem()
+    {
+        var fonte = CriarFonte();
+        var validator = new FonteUrlValidatorStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var useCase = CriarUseCase(fonte, validator, unitOfWork);
+        var request = new AtualizarFonteRequest(fonte.Nome, fonte.Url, fonte.Tipo, fonte.PeriodicidadeMinutos, "  MOC  ");
+
+        var response = await useCase.Execute(fonte.Id, request, TestContext.Current.CancellationToken);
+
+        fonte.Contexto.Should().Be("MOC");
+        response.Contexto.Should().Be("MOC");
+        validator.Chamadas.Should().Be(0);
+        unitOfWork.Commits.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Execute_NaoDeveValidarRemotamente_QuandoUrlDiferirSomentePorEspacosExternos()
     {
         var fonte = CriarFonte();
@@ -74,7 +93,8 @@ public sealed class AtualizarFonteUseCaseTests
             fonte.Nome,
             $"  {fonte.Url}  ",
             fonte.Tipo,
-            fonte.PeriodicidadeMinutos);
+            fonte.PeriodicidadeMinutos,
+            "Legislação");
 
         await useCase.Execute(
             fonte.Id,
@@ -100,7 +120,8 @@ public sealed class AtualizarFonteUseCaseTests
             "Nome modificado",
             "https://novo.exemplo.com/feed",
             TipoFonte.Atom,
-            90);
+            90,
+            "Legislação");
 
         var act = () => useCase.Execute(
             fonte.Id,
@@ -126,7 +147,8 @@ public sealed class AtualizarFonteUseCaseTests
             "Portal",
             "https://exemplo.com/feed",
             TipoFonte.Rss,
-            30);
+            30,
+            "Legislação");
 
         var act = () => useCase.Execute(
             Guid.NewGuid(),
@@ -145,7 +167,8 @@ public sealed class AtualizarFonteUseCaseTests
             "https://exemplo.com/feed",
             TipoFonte.Rss,
             30,
-            Guid.NewGuid());
+            Guid.NewGuid(),
+            "Legislação");
 
     private static AtualizarFonteUseCase CriarUseCase(
         Fonte? fonte,
@@ -204,6 +227,7 @@ public sealed class AtualizarFonteUseCaseTests
             int tamanhoPagina,
             TipoFonte? tipo,
             StatusFonte? status,
+            string? contexto,
             string? busca,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<Fonte>, int)>(([], 0));

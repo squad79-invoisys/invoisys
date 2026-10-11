@@ -8,4 +8,5 @@ public sealed class NovaFonteFormModel
     public string Url { get; set; } = string.Empty;
     public TipoFonte? Tipo { get; set; }
     public int? PeriodicidadeMinutos { get; set; }
+    public string? Contexto { get; set; }
 }
