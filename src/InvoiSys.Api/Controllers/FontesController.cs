@@ -1,9 +1,11 @@
+using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Fontes;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
+using InvoiSys.Application.Fontes.ImportarFontes;
 using InvoiSys.Application.Fontes.ListarFontes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +21,8 @@ public sealed class FontesController(
     IConsultarFonteUseCase consultarFonteUseCase,
     IListarFontesUseCase listarFontesUseCase,
     IAtualizarFonteUseCase atualizarFonteUseCase,
-    IAlterarStatusFonteUseCase alterarStatusFonteUseCase) : ControllerBase
+    IAlterarStatusFonteUseCase alterarStatusFonteUseCase,
+    IImportarFontesUseCase importarFontesUseCase) : ControllerBase
 {
     [HttpPost]
     [Authorize(Roles = "Administrador,Operador")]
@@ -50,6 +53,45 @@ public sealed class FontesController(
             ApiResponse<FonteResponse>.Ok(
                 "Fonte criada com sucesso.",
                 response));
+    }
+
+    [HttpPost("importar")]
+    [Authorize(Roles = "Administrador,Operador")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(2_097_152)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 2_097_152)]
+    [SwaggerOperation(
+        Summary = "Importa fontes em lote por CSV",
+        Description = "Recebe um arquivo CSV (UTF-8, até 1 MB e 100 linhas de dados) no campo 'arquivo', "
+            + "com cabeçalho contendo as colunas nome, url, tipo (Rss, Atom ou WebHtml) e periodicidade "
+            + "(minutos); a coluna contexto é opcional (padrão \"Outro\"). O separador pode ser vírgula "
+            + "ou ponto e vírgula. As linhas válidas são cadastradas mesmo que outras sejam inválidas; "
+            + "as rejeitadas são listadas com o número da linha e o motivo.",
+        OperationId = "ImportarFontes",
+        Tags = ["Fontes"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Importação processada; veja as linhas rejeitadas.",
+        typeof(ApiResponse<ImportarFontesResponse>))]
+    [SwaggerResponse(
+        StatusCodes.Status400BadRequest,
+        "Arquivo ausente ou inválido.",
+        typeof(ApiResponse<object>))]
+    public async Task<IActionResult> ImportarAsync(
+        IFormFile? arquivo,
+        CancellationToken cancellationToken)
+    {
+        if (arquivo is null)
+            throw new BusinessException("Envie o arquivo CSV no campo 'arquivo'.");
+
+        await using var stream = arquivo.OpenReadStream();
+        var response = await importarFontesUseCase.ExecutarAsync(
+            stream,
+            cancellationToken);
+
+        return Ok(ApiResponse<ImportarFontesResponse>.Ok(
+            $"{response.Cadastradas} fonte(s) cadastrada(s) e {response.Rejeitadas.Count} linha(s) rejeitada(s).",
+            response));
     }
 
     [HttpGet("{id:guid}")]
