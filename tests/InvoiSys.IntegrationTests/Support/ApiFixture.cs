@@ -82,7 +82,14 @@ public sealed class ApiFixture : IAsyncLifetime
             var baseAddress = descoberta.BaseAddress ?? throw new InvalidOperationException(
                 "Não foi possível descobrir o endereço da API.");
 
-            _http = new HttpClient(new HttpClientHandler { UseCookies = false })
+            var handler = new HttpClientHandler
+            {
+                UseCookies = false,
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+
+            _http = new HttpClient(handler)
             {
                 BaseAddress = baseAddress,
                 Timeout = TimeSpan.FromMinutes(2)
