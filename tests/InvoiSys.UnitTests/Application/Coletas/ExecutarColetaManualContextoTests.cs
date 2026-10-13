@@ -5,6 +5,7 @@ using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvoiSys.UnitTests.Application.Coletas;
 
@@ -17,7 +18,8 @@ public sealed class ExecutarColetaManualContextoTests
         var documentos = new DocumentosStub();
         var useCase = new ExecutarColetaManualUseCase(
             new UsuarioStub(), new FonteStub(fonte), new ExecucoesStub(), documentos,
-            new CollectorResolverStub(), new UnitOfWorkStub());
+            new CollectorResolverStub(), new UnitOfWorkStub(),
+            NullLogger<ExecutarColetaManualUseCase>.Instance);
 
         await useCase.ExecutarAsync(fonte.Id, TestContext.Current.CancellationToken);
 
@@ -28,7 +30,8 @@ public sealed class ExecutarColetaManualContextoTests
         documentos.Itens[0].Contexto.Should().Be("Legislação");
 
         await useCase.ExecutarAsync(fonte.Id, TestContext.Current.CancellationToken);
-        documentos.Itens[1].Contexto.Should().Be("MOC");
+        documentos.Itens.Should().ContainSingle();
+        documentos.Itens[0].Contexto.Should().Be("Legislação");
     }
 
     private sealed class UsuarioStub : ICurrentUser
@@ -59,10 +62,15 @@ public sealed class ExecutarColetaManualContextoTests
     private sealed class DocumentosStub : IDocumentoRepository
     {
         public List<Documento> Itens { get; } = [];
-        public Task AdicionarVariosAsync(IEnumerable<Documento> documentos, CancellationToken token)
+        public Task<int> InserirNovosAsync(IReadOnlyCollection<Documento> documentos, CancellationToken token)
         {
-            Itens.AddRange(documentos);
-            return Task.CompletedTask;
+            var novos = documentos
+                .Where(documento => !Itens.Any(existente =>
+                    existente.UrlOriginal == documento.UrlOriginal &&
+                    existente.Hash == documento.Hash))
+                .ToList();
+            Itens.AddRange(novos);
+            return Task.FromResult(novos.Count);
         }
         public Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken token) => Task.FromResult<Documento?>(null);
         public Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(int pagina, int tamanhoPagina,
@@ -86,6 +94,9 @@ public sealed class ExecutarColetaManualContextoTests
 
     private sealed class UnitOfWorkStub : IUnitOfWork
     {
+        public Task BeginTransactionAsync(CancellationToken token) => Task.CompletedTask;
         public Task<int> CommitAsync(CancellationToken token) => Task.FromResult(1);
+        public Task CommitTransactionAsync(CancellationToken token) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken token) => Task.CompletedTask;
     }
 }

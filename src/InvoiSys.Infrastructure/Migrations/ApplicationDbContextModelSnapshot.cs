@@ -81,7 +81,8 @@ namespace InvoiSys.Infrastructure.Migrations
 
                     b.HasIndex("Hash");
 
-                    b.HasIndex("UrlOriginal");
+                    b.HasIndex("UrlOriginal", "Hash")
+                        .IsUnique();
 
                     b.ToTable("documentos", (string)null);
                 });

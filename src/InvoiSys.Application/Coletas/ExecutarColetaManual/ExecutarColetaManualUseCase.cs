@@ -1,9 +1,12 @@
+using System.Data.Common;
+using System.Runtime.ExceptionServices;
 using InvoiSys.Application.Common.Abstractions;
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvoiSys.Application.Coletas.ExecutarColetaManual;
 
@@ -13,7 +16,8 @@ public sealed class ExecutarColetaManualUseCase(
     IExecucaoColetaRepository execucaoRepository,
     IDocumentoRepository documentoRepository,
     ICollectorResolver collectorResolver,
-    IUnitOfWork unitOfWork) : IExecutarColetaManualUseCase
+    IUnitOfWork unitOfWork,
+    ILogger<ExecutarColetaManualUseCase> logger) : IExecutarColetaManualUseCase
 {
     public async Task<ExecucaoColetaResponse> ExecutarAsync(
         Guid fonteId,
@@ -30,6 +34,7 @@ public sealed class ExecutarColetaManualUseCase(
 
         var execucao = ExecucaoColeta.IniciarManual(fonte.Id, usuarioId);
         await execucaoRepository.AdicionarAsync(execucao, cancellationToken);
+        var transacaoIniciada = false;
 
         try
         {
@@ -51,24 +56,108 @@ public sealed class ExecutarColetaManualUseCase(
                     documento.ConteudoTextual,
                     documento.Metadados,
                     documento.Hash))
+                .DistinctBy(documento => (documento.UrlOriginal, documento.Hash))
                 .ToList();
 
-            await documentoRepository.AdicionarVariosAsync(documentos, cancellationToken);
+            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            transacaoIniciada = true;
 
-            execucao.Concluir(documentos.Count);
+            // Persiste a execução dentro da mesma transação para satisfazer a FK,
+            // sem torná-la visível como EmAndamento fora da transação.
             await unitOfWork.CommitAsync(cancellationToken);
+
+            var quantidadeInserida = await documentoRepository.InserirNovosAsync(
+                documentos,
+                cancellationToken);
+
+            execucao.Concluir(quantidadeInserida);
+            await unitOfWork.CommitAsync(cancellationToken);
+            await unitOfWork.CommitTransactionAsync(cancellationToken);
+            transacaoIniciada = false;
 
             return ExecucaoColetaResponse.FromEntity(execucao);
         }
         catch (OperationCanceledException)
         {
+            if (transacaoIniciada)
+                await RollbackSemMascararAsync();
+
             throw;
         }
         catch (Exception exception)
         {
+            var execucaoPrecisaSerReadicionada = transacaoIniciada;
+
+            if (transacaoIniciada)
+            {
+                await RollbackSemMascararAsync();
+            }
+
             execucao.RegistrarFalha(exception.Message);
-            await unitOfWork.CommitAsync(cancellationToken);
+
+            try
+            {
+                if (execucaoPrecisaSerReadicionada)
+                {
+                    // Após rollback o tracker foi limpo e a inserção anterior da
+                    // execução também foi revertida; ela precisa ser adicionada novamente.
+                    await execucaoRepository.AdicionarAsync(execucao, CancellationToken.None);
+                }
+
+                await unitOfWork.CommitAsync(CancellationToken.None);
+            }
+            catch (Exception auditException)
+            {
+                logger.LogError(
+                    auditException,
+                    "Falha ao registrar a execução {ExecucaoId} como falha após o erro original.",
+                    execucao.Id);
+                logger.LogError(
+                    exception,
+                    "Erro original da execução de coleta {ExecucaoId}.",
+                    execucao.Id);
+
+                ExceptionDispatchInfo.Capture(exception).Throw();
+                throw;
+            }
+
+            if (EhErroDePersistencia(exception))
+            {
+                ExceptionDispatchInfo.Capture(exception).Throw();
+                throw new InvalidOperationException("Fluxo inalcançável.");
+            }
+
             throw new BusinessException("A coleta não pôde ser concluída.");
         }
+
+        async Task RollbackSemMascararAsync()
+        {
+            try
+            {
+                await unitOfWork.RollbackTransactionAsync(CancellationToken.None);
+            }
+            catch (Exception rollbackException)
+            {
+                logger.LogError(
+                    rollbackException,
+                    "Falha ao reverter a transação da execução de coleta {ExecucaoId}.",
+                    execucao.Id);
+            }
+            finally
+            {
+                transacaoIniciada = false;
+            }
+        }
+    }
+
+    private static bool EhErroDePersistencia(Exception exception)
+    {
+        for (var atual = exception; atual is not null; atual = atual.InnerException!)
+        {
+            if (atual is DbException)
+                return true;
+        }
+
+        return false;
     }
 }

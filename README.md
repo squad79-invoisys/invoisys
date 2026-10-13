@@ -120,6 +120,8 @@ Antes do merge, atualize sua branch com `git merge develop`. O passo a passo com
 - [Execução](docs/execucao.md)
 - [Validação](docs/validacao.md)
 
+> **Limitação conhecida — URLs longas:** O índice único de documentos `(UrlOriginal, Hash)` está sujeito ao limite físico de tamanho dos índices B-tree do PostgreSQL. URLs excepcionalmente longas, especialmente com caracteres multibyte, podem ultrapassar esse limite e impedir a inserção. Essa limitação é conhecida e foi aceita pela equipe. Para detalhes e resultados dos testes, consulte [Validação do índice de documentos](docs/validacao-indice-documentos.md).
+
 ## Observação sobre testes de integração
 
 O projeto de integração usa `Aspire.Hosting.Testing`. O smoke test sobe AppHost, PostgreSQL efêmero e API, aguarda a API ficar saudável e valida `GET /alive` com HTTP 200. Ele requer Docker Desktop ativo, mas não reutiliza o volume persistente de desenvolvimento.
