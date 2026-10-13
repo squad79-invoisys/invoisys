@@ -4,8 +4,8 @@ namespace InvoiSys.Domain.Repositories;
 
 public interface IDocumentoRepository
 {
-    Task AdicionarVariosAsync(
-        IEnumerable<Documento> documentos,
+    Task<int> InserirNovosAsync(
+        IReadOnlyCollection<Documento> documentos,
         CancellationToken cancellationToken);
 
     Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
@@ -13,6 +13,7 @@ public interface IDocumentoRepository
     Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(
         int pagina,
         int tamanhoPagina,
+        string? contexto,
         string? busca,
         CancellationToken cancellationToken);
 }

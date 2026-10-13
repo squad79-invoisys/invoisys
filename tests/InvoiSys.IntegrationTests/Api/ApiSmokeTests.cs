@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace InvoiSys.IntegrationTests.Api;
 
+[Collection("Aspire")]
 public sealed class ApiSmokeTests
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
