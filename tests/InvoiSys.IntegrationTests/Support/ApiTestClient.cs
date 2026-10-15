@@ -3,10 +3,6 @@ using System.Net.Http.Json;
 
 namespace InvoiSys.IntegrationTests.Support;
 
-/// <summary>
-/// Cliente HTTP da API com (ou sem) access token. O cookie de refresh é enviado
-/// manualmente, para que cada teste controle exatamente qual sessão usa.
-/// </summary>
 public sealed class ApiTestClient(HttpClient http, string? accessToken)
 {
     public Task<HttpResponseMessage> GetAsync(

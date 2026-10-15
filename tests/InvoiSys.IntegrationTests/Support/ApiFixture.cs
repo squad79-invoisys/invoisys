@@ -13,16 +13,11 @@ using InvoiSys.Domain.Enums;
 
 namespace InvoiSys.IntegrationTests.Support;
 
-/// <summary>
-/// Sobe o AppHost (API + PostgreSQL) uma única vez para todos os testes de
-/// endpoint, junto com um servidor de feeds local e um usuário de cada perfil.
-/// </summary>
 public sealed class ApiFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin@invoisys.test";
     public const string AdminSenha = "InvoiSys_Admin_123!";
 
-    /// <summary>Senha que atende a política de senhas do cadastro de usuários.</summary>
     public const string SenhaPadrao = "InvoiSys_User_123!";
 
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromMinutes(3);
@@ -75,8 +70,6 @@ public sealed class ApiFixture : IAsyncLifetime
             .WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(StartupTimeout, cancellationToken);
 
-        // O cliente do Aspire serve só para descobrir o endereço da API. Os testes
-        // usam um HttpClient próprio, sem CookieContainer, para controlar os cookies.
         using (var descoberta = _app.CreateHttpClient("api"))
         {
             var baseAddress = descoberta.BaseAddress ?? throw new InvalidOperationException(

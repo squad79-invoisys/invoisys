@@ -35,9 +35,7 @@ public sealed class ApiSmokeTests
             .WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(DefaultTimeout, cancellationToken);
 
-        // O cliente do Aspire serve só para descobrir o endereço da API. A chamada
-        // usa um HttpClient que aceita o certificado de desenvolvimento, que não é
-        // confiável em máquinas limpas como o runner do GitHub Actions.
+
         using var descoberta = app.CreateHttpClient("api");
         using var client = new HttpClient(new HttpClientHandler
         {

@@ -4,11 +4,6 @@ using InvoiSys.IntegrationTests.Support;
 
 namespace InvoiSys.IntegrationTests.Api;
 
-/// <summary>
-/// Matriz de autorização dos endpoints protegidos: sem token (401), com perfil
-/// insuficiente (403) e leitura liberada para qualquer usuário autenticado.
-/// A autorização roda antes da ação, então o corpo e o id usados aqui não importam.
-/// </summary>
 [Collection(ApiCollection.Name)]
 public sealed class AutorizacaoEndpointsTests(ApiFixture api)
 {

@@ -7,10 +7,6 @@ using InvoiSys.IntegrationTests.Support;
 
 namespace InvoiSys.IntegrationTests.Api;
 
-/// <summary>
-/// As asserções comparam o resumo antes e depois de cada ação (deltas), porque o
-/// banco é compartilhado entre os testes da coleção.
-/// </summary>
 [Collection(ApiCollection.Name)]
 public sealed class DashboardEndpointsTests(ApiFixture api)
 {

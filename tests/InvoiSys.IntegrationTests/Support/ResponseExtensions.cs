@@ -40,7 +40,6 @@ public static class ResponseExtensions
             $"Falha na preparação do teste: HTTP {(int)response.StatusCode}. {corpo}");
     }
 
-    /// <summary>Retorna o valor completo do header Set-Cookie do cookie informado.</summary>
     public static string? ObterSetCookie(
         this HttpResponseMessage response,
         string nomeCookie)
@@ -51,8 +50,7 @@ public static class ResponseExtensions
         return valores.FirstOrDefault(valor =>
             valor.StartsWith(nomeCookie + "=", StringComparison.Ordinal));
     }
-
-    /// <summary>Converte um Set-Cookie no par "nome=valor" aceito no header Cookie.</summary>
+    
     public static string ParaHeaderCookie(this string setCookie) =>
         setCookie.Split(';')[0].Trim();
 }

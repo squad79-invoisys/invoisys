@@ -117,10 +117,6 @@ public sealed class DocumentosEndpointsTests(ApiFixture api)
         corpo.Mensagem.Should().Contain("Documento não encontrado");
     }
 
-    /// <summary>
-    /// Cadastra uma Fonte RSS com conteúdo único e executa uma coleta,
-    /// gerando dois documentos cujos títulos carregam o token devolvido.
-    /// </summary>
     private async Task<(string Token, Guid ExecucaoId)> ColetarFeedAsync()
     {
         var token = ApiFixture.NovoToken();

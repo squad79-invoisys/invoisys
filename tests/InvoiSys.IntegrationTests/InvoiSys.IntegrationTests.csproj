@@ -9,7 +9,7 @@
     <ProjectReference Include="..\..\src\InvoiSys.Domain\InvoiSys.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Necessário para o servidor de feeds falso (Kestrel) usado nos testes. -->
+    
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>

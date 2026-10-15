@@ -7,16 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace InvoiSys.IntegrationTests.Support;
 
-/// <summary>
-/// Servidor HTTP local que publica feeds RSS/Atom previsíveis. A API cadastra e
-/// coleta Fontes a partir de URLs reais, então os testes precisam de um destino
-/// que não dependa da internet.
-/// </summary>
-/// <remarks>
-/// O parâmetro de query "token" torna o conteúdo único por teste: os títulos dos
-/// documentos coletados carregam o token, o que permite filtrar a listagem sem
-/// interferência de outros testes.
-/// </remarks>
 public sealed class FakeFeedServer : IAsyncDisposable
 {
     private readonly WebApplication _app;
@@ -29,22 +19,14 @@ public sealed class FakeFeedServer : IAsyncDisposable
 
     public Uri BaseAddress { get; }
 
-    /// <summary>Feed RSS 2.0 com 2 itens.</summary>
     public string RssUrl(string token) => Montar("rss.xml", token);
 
-    /// <summary>Feed Atom com 1 entrada.</summary>
     public string AtomUrl(string token) => Montar("atom.xml", token);
 
-    /// <summary>
-    /// Responde com um feed RSS válido apenas na primeira requisição por token
-    /// (a validação do cadastro) e com 404 nas seguintes (a coleta).
-    /// </summary>
     public string InstavelUrl(string token) => Montar("instavel.xml", token);
 
-    /// <summary>Página HTML simples, para Fontes do tipo WebHtml.</summary>
     public string HtmlUrl() => new Uri(BaseAddress, "pagina.html").ToString();
 
-    /// <summary>URL que sempre responde 404.</summary>
     public string InexistenteUrl() => new Uri(BaseAddress, "inexistente.xml").ToString();
 
     public static async Task<FakeFeedServer> StartAsync(
