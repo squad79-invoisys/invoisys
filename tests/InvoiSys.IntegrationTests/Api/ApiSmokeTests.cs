@@ -35,7 +35,17 @@ public sealed class ApiSmokeTests
             .WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(DefaultTimeout, cancellationToken);
 
-        using var client = app.CreateHttpClient("api");
+
+        using var descoberta = app.CreateHttpClient("api");
+        using var client = new HttpClient(new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        })
+        {
+            BaseAddress = descoberta.BaseAddress
+        };
+
         using var response = await client.GetAsync("/alive", cancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
