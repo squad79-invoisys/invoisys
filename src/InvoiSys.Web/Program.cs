@@ -57,6 +57,12 @@ builder.Services
         client.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
+builder.Services
+    .AddRefitClient<IDashboardClient>()
+    .ConfigureHttpClient(client =>
+        client.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
+
 var host = builder.Build();
 
 await host.Services
