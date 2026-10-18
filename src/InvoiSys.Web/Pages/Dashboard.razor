@@ -15,7 +15,7 @@
 <PageTitle>Dashboard - InvoiSys</PageTitle>
 
 <MudText Typo="Typo.h4">Dashboard</MudText>
-<MudText Typo="Typo.body1">
+<MudText Typo="Typo.body1" Class="page-subtitle">
     Resumo das fontes e das coletas
 </MudText>
 
@@ -231,17 +231,7 @@
                         </span>
                         <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
                     </button>
-
-                    @* A API ainda não tem agendamento de coletas; o botão fica desabilitado até existir. *@
-                    <button type="button" class="dash-action" disabled>
-                        <MudIcon Icon="@Icons.Material.Outlined.Schedule" Class="dash-action-icon" />
-                        <span class="dash-action-text">
-                            <strong>Agendar coleta</strong>
-                            <small>Em breve</small>
-                        </span>
-                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
-                    </button>
-
+                    
                     <button type="button" class="dash-action" @onclick='() => Navigation.NavigateTo("/fontes")'>
                         <MudIcon Icon="@Icons.Material.Outlined.Adjust" Class="dash-action-icon" />
                         <span class="dash-action-text">

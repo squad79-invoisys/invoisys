@@ -1,10 +1,13 @@
 @page "/fontes"
 @attribute [Authorize]
 @implements IDisposable
+@using System.Net
+@using InvoiSys.Application.Coletas
 @using InvoiSys.Application.Fontes
 @using InvoiSys.Domain.Enums
 @using InvoiSys.Web.Components.Fontes
 @inject IFontesClient FontesClient
+@inject IColetasClient ColetasClient
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
@@ -12,8 +15,8 @@
 
 <section class="fontes-page" aria-label="Fontes">
     <header class="fontes-header">
-        <MudText Typo="Typo.h3" Class="fontes-title">Fontes</MudText>
-        <MudText Typo="Typo.body1">Cadastre, edite e acompanhe as fontes monitoradas pela plataforma</MudText>
+        <MudText Typo="Typo.h4">Fontes</MudText>
+        <MudText Typo="Typo.body1" Class="page-subtitle">Cadastre, edite e acompanhe as fontes monitoradas pela plataforma</MudText>
     </header>
 
     <div class="fontes-filter-bar">
@@ -81,7 +84,7 @@
                     <div class="row-actions">
                         <MudTooltip Text="Visualizar detalhes">
                             <MudIconButton Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small"
-                                           OnClick="@(() => SelecionarFonte(context))" aria-label="Ver detalhes" />
+                                           OnClick="@(() => SelecionarFonteAsync(context))" aria-label="Ver detalhes" />
                         </MudTooltip>
                         <AuthorizeView Roles="Administrador,Operador" Context="rowAuthorization">
                             <Authorized>
@@ -130,20 +133,23 @@
                 <div><dt>URL</dt><dd title="@fonte.Url">@fonte.Url</dd></div>
                 <div><dt>Periodicidade</dt><dd>@FormatarPeriodicidade(fonte.PeriodicidadeMinutos)</dd></div>
                 <div><dt>Timeout</dt><dd>—</dd></div>
-                <div><dt>Última execução</dt><dd>—</dd></div>
+                <div><dt>Última execução</dt><dd>@TextoUltimaExecucao(_resumo)</dd></div>
                 <div><dt>Próxima execução</dt><dd>—</dd></div>
-                <div><dt>Documentos coletados</dt><dd>—</dd></div>
-                <div><dt>Taxa de sucesso (24h)</dt><dd>—</dd></div>
+                <div><dt>Documentos coletados</dt><dd>@TextoDocumentos(_resumo)</dd></div>
+                <div>
+                    <dt>Taxa de sucesso (24h)</dt>
+                    <dd class="@(_resumo?.TaxaSucesso24h is not null ? "details-success" : null)">@TextoTaxaSucesso(_resumo)</dd>
+                </div>
             </dl>
             <AuthorizeView Roles="Administrador,Operador" Context="detailsAuthorization">
                 <Authorized>
                     <div class="details-actions">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Edit"
                                    Disabled="@(_fonteEmAlteracaoId is not null)" OnClick="@(() => AbrirEdicaoAsync(fonte))">Editar fonte</MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="@(fonte.Status == StatusFonte.Ativa ? Color.Warning : Color.Success)"
-                                   StartIcon="@(fonte.Status == StatusFonte.Ativa ? Icons.Material.Outlined.Pause : Icons.Material.Outlined.PlayArrow)"
-                                   Disabled="@(_fonteEmAlteracaoId is not null)" OnClick="@(() => ConfirmarAlteracaoStatusAsync(fonte))">
-                            @(fonte.Status == StatusFonte.Ativa ? "Inativar fonte" : "Ativar fonte")
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   Disabled="@(_executandoColeta || fonte.Status != StatusFonte.Ativa)"
+                                   OnClick="@(() => ExecutarColetaAsync(fonte))">
+                            @(_executandoColeta ? "Executando..." : "Executar coleta")
                         </MudButton>
                     </div>
                 </Authorized>
@@ -172,6 +178,19 @@
     private int _totalFontes;
     private FonteResponse? _fonteSelecionada;
     private Guid? _fonteEmAlteracaoId;
+
+    // A API aceita no máximo 100 itens por página (ListarColetasValidator).
+    private const int TamanhoMaximoPagina = 100;
+
+    private sealed record ResumoExecucoes(
+        Guid FonteId,
+        DateTimeOffset? UltimaExecucao,
+        int DocumentosColetados,
+        bool Parcial,
+        double? TaxaSucesso24h);
+
+    private ResumoExecucoes? _resumo;
+    private bool _executandoColeta;
 
     private int _totalAtivas => _fontes.Count(fonte => fonte.Status == StatusFonte.Ativa);
     private int _totalInativas => _fontes.Count(fonte => fonte.Status == StatusFonte.Inativa);
@@ -204,6 +223,8 @@
             Snackbar.Add("Não foi possível carregar as fontes. Tente novamente.", Severity.Error);
         }
         finally { _carregando = false; }
+
+        await CarregarResumoAsync();
     }
 
     private async Task AbrirCadastroAsync()
@@ -277,7 +298,149 @@
     }
 
     private string FormatarPercentual(int quantidade) => _totalFontes == 0 ? "0%" : $"{quantidade * 100d / _totalFontes:0.#}%";
-    private void SelecionarFonte(FonteResponse fonte) => _fonteSelecionada = fonte;
+
+    private async Task SelecionarFonteAsync(FonteResponse fonte)
+    {
+        _fonteSelecionada = fonte;
+        await CarregarResumoAsync();
+    }
+
+    // Não existe endpoint de resumo por fonte: os números saem das execuções mais recentes dela.
+    private async Task CarregarResumoAsync()
+    {
+        if (_fonteSelecionada is not { } fonte)
+        {
+            _resumo = null;
+            return;
+        }
+
+        var fonteId = fonte.Id;
+        if (_resumo?.FonteId != fonteId)
+            _resumo = null;
+
+        try
+        {
+            var resposta = await ColetasClient.ListarAsync(
+                1, TamanhoMaximoPagina, fonteId, cancellationToken: _cancellationTokenSource.Token);
+
+            var dados = resposta.Dados;
+            IReadOnlyList<ExecucaoColetaResponse> execucoes = dados?.Itens ?? [];
+
+            // O usuário pode ter selecionado outra fonte enquanto esta carregava.
+            if (_fonteSelecionada?.Id != fonteId)
+                return;
+
+            var desde = DateTimeOffset.UtcNow.AddHours(-24);
+            var finalizadas24h = execucoes
+                .Where(e => e.Inicio >= desde && e.Status != StatusExecucaoColeta.EmAndamento)
+                .ToList();
+
+            _resumo = new ResumoExecucoes(
+                fonteId,
+                execucoes.Count > 0 ? execucoes.Max(e => e.Inicio) : (DateTimeOffset?)null,
+                execucoes.Where(e => e.Status == StatusExecucaoColeta.Concluida).Sum(e => e.QuantidadeDocumentos),
+                (dados?.Total ?? 0) > execucoes.Count,
+                finalizadas24h.Count == 0
+                    ? null
+                    : finalizadas24h.Count(e => e.Status == StatusExecucaoColeta.Concluida) * 100d / finalizadas24h.Count);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _resumo = null;
+        }
+    }
+
+    private async Task ExecutarColetaAsync(FonteResponse fonte)
+    {
+        if (_executandoColeta)
+            return;
+
+        _executandoColeta = true;
+
+        try
+        {
+            // A API executa a coleta de forma síncrona: a chamada só volta quando ela termina.
+            var resposta = await ColetasClient.ExecutarAsync(fonte.Id, _cancellationTokenSource.Token);
+            var execucao = resposta.Dados;
+
+            Snackbar.Add(
+                execucao is null
+                    ? "Coleta executada com sucesso."
+                    : $"Coleta concluída: {execucao.QuantidadeDocumentos} documento(s) coletado(s).",
+                Severity.Success);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Refit.ApiException exception)
+        {
+            Snackbar.Add(
+                await MensagemDeErroAsync(exception, "Não foi possível executar a coleta."),
+                Severity.Error);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível acessar a API. Tente novamente.", Severity.Error);
+        }
+        finally
+        {
+            _executandoColeta = false;
+        }
+
+        // Uma coleta que falha também gera um registro, então atualiza em qualquer caso.
+        await CarregarResumoAsync();
+    }
+
+    private static async Task<string> MensagemDeErroAsync(Refit.ApiException exception, string mensagemPadrao)
+    {
+        if (exception.StatusCode == HttpStatusCode.Unauthorized)
+            return "Sua sessão expirou. Entre novamente.";
+
+        if (exception.StatusCode == HttpStatusCode.Forbidden)
+            return "Você não tem permissão para realizar esta ação.";
+
+        try
+        {
+            var corpo = await exception.GetContentAsAsync<InvoiSys.Application.Common.Responses.ApiResponse<object>>();
+
+            if (!string.IsNullOrWhiteSpace(corpo?.Mensagem))
+                return corpo.Mensagem;
+        }
+        catch (Exception)
+        {
+            // Corpo ausente ou fora do formato esperado: usa a mensagem padrão.
+        }
+
+        return mensagemPadrao;
+    }
+
+    private static string TextoUltimaExecucao(ResumoExecucoes? resumo) =>
+        resumo?.UltimaExecucao is { } inicio ? FormatarDataHora(inicio) : "—";
+
+    private static string TextoDocumentos(ResumoExecucoes? resumo) =>
+        resumo is null ? "—" : $"{resumo.DocumentosColetados:N0}{(resumo.Parcial ? "+" : "")}";
+
+    private static string TextoTaxaSucesso(ResumoExecucoes? resumo) =>
+        resumo?.TaxaSucesso24h is { } taxa ? $"{taxa:0.#}%" : "—";
+
+    private static string FormatarDataHora(DateTimeOffset valor)
+    {
+        var local = valor.ToLocalTime();
+        var hora = local.ToString("HH:mm");
+
+        if (local.Date == DateTime.Today)
+            return $"Hoje, {hora}";
+
+        if (local.Date == DateTime.Today.AddDays(-1))
+            return $"Ontem, {hora}";
+
+        return local.ToString("dd/MM/yyyy, HH:mm");
+    }
+
     private static string FormatarTipo(TipoFonte tipo) => tipo switch
     {
         TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", _ => tipo.ToString()
