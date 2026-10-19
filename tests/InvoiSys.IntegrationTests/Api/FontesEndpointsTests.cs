@@ -20,7 +20,7 @@ public sealed class FontesEndpointsTests(ApiFixture api)
         TipoFonte tipo = TipoFonte.Rss,
         int periodicidadeMinutos = 60,
         string? seletor = null) =>
-        new(nome, url, tipo, periodicidadeMinutos, seletor);
+        new(nome, url, tipo, periodicidadeMinutos, "Outro", seletor);
 
     [Fact]
     public async Task Criar_DeveRetornar201_QuandoFeedRssValido()
@@ -293,7 +293,7 @@ public sealed class FontesEndpointsTests(ApiFixture api)
             $"Fonte renomeada {token}",
             criada.Url,
             TipoFonte.Rss,
-            120);
+            120, "Outro");
 
         using var response = await api.Operador.PutAsync(
             $"/api/fontes/{criada.Id}",
@@ -326,7 +326,7 @@ public sealed class FontesEndpointsTests(ApiFixture api)
             criada.Nome,
             api.Feed.InexistenteUrl(),
             TipoFonte.Rss,
-            60);
+            60, "Outro");
 
         using var response = await api.Admin.PutAsync(
             $"/api/fontes/{criada.Id}",
@@ -344,7 +344,7 @@ public sealed class FontesEndpointsTests(ApiFixture api)
             TipoFonte.Rss,
             Ct);
 
-        var request = new AtualizarFonteRequest(criada.Nome, criada.Url, TipoFonte.Rss, 0);
+        var request = new AtualizarFonteRequest(criada.Nome, criada.Url, TipoFonte.Rss, 0, "Outro");
 
         using var response = await api.Admin.PutAsync(
             $"/api/fontes/{criada.Id}",
@@ -362,7 +362,7 @@ public sealed class FontesEndpointsTests(ApiFixture api)
             "Fonte fantasma",
             api.Feed.RssUrl(token),
             TipoFonte.Rss,
-            60);
+            60, "Outro");
 
         using var response = await api.Admin.PutAsync(
             $"/api/fontes/{Guid.NewGuid()}",
