@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text;
+using System.Reflection;
+using System.Xml.Linq;
 using FluentAssertions;
 using InvoiSys.Collectors.RssAtom;
 
@@ -7,6 +9,28 @@ namespace InvoiSys.UnitTests.Collectors;
 
 public sealed class RssAtomCollectorTests
 {
+    [Fact]
+    public async Task ExtracaoRssGrande_DeveInterromperAoCancelar()
+    {
+        var itens = string.Concat(Enumerable.Range(0, 20000)
+            .Select(i => $"<item><title>{i}</title><link>https://exemplo.com/{i}</link></item>"));
+        var xml = XDocument.Parse($"<rss><channel>{itens}</channel></rss>");
+        var metodo = typeof(RssAtomCollector).GetMethod("LerRss", BindingFlags.NonPublic | BindingFlags.Static)!;
+        using var cancellation = new CancellationTokenSource();
+        using var iniciou = new ManualResetEventSlim();
+        var extracao = Task.Run(() =>
+        {
+            iniciou.Set();
+            try { metodo.Invoke(null, [xml, "https://exemplo.com/feed", cancellation.Token]); }
+            catch (TargetInvocationException exception) when (exception.InnerException is OperationCanceledException)
+            { throw exception.InnerException; }
+        }, TestContext.Current.CancellationToken);
+        iniciou.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).Should().BeTrue();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(1));
+        var act = () => extracao;
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     [Fact]
     public async Task ColetarAsync_DevePreservarColetaRss20()
     {

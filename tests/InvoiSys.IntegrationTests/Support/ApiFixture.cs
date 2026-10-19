@@ -56,7 +56,8 @@ public sealed class ApiFixture : IAsyncLifetime
                 $"Parameters:jwt-key={jwtKey}",
                 $"Parameters:admin-email={AdminEmail}",
                 $"Parameters:admin-password={AdminSenha}",
-                "UsePersistentDatabase=false"
+                "UsePersistentDatabase=false",
+                "ColetaAutomatica:Enabled=false"
             ],
             cancellationToken);
 
