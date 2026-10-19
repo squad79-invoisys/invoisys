@@ -17,9 +17,19 @@
             <MudText Typo="Typo.subtitle2">Precisando de ajuda?</MudText>
             <MudText Typo="Typo.caption">Acesse nossa central de ajuda<br />ou fale com o suporte.</MudText>
         </div>
-        <div class="user-card">
-            <span class="user-initials">AD</span>
-            <div><MudText Typo="Typo.subtitle2">Admin</MudText><MudText Typo="Typo.caption">Administrador</MudText></div>
-        </div>
+        <AuthorizeView>
+            <Authorized>
+                @{
+                    var identificacao = UserDisplay.Identificacao(context.User);
+                }
+                <div class="user-card">
+                    <span class="user-initials">@UserDisplay.Iniciais(identificacao)</span>
+                    <div>
+                        <MudText Typo="Typo.subtitle2">@identificacao</MudText>
+                        <MudText Typo="Typo.caption">@UserDisplay.Perfil(context.User)</MudText>
+                    </div>
+                </div>
+            </Authorized>
+        </AuthorizeView>
     </div>
 </div>
