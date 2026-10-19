@@ -1,3 +1,5 @@
+using InvoiSys.Api.Middleware;
+
 namespace InvoiSys.Api.Configurations;
 
 public static class CorsConfiguration
@@ -22,7 +24,8 @@ public static class CorsConfiguration
                         .WithOrigins(webOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
-                        .AllowCredentials();
+                        .AllowCredentials()
+                        .WithExposedHeaders(TraceIdMiddleware.HeaderName);
                 }
             });
         });

@@ -1,4 +1,5 @@
 using InvoiSys.Api.Configurations;
+using InvoiSys.Api.Middleware;
 using InvoiSys.Infrastructure.Data;
 using InvoiSys.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ builder.Services.AddCorsConfiguration(builder.Configuration);
 builder.Services.AddSwaggerConfiguration();
 
 var app = builder.Build();
+
+app.UseMiddleware<TraceIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
