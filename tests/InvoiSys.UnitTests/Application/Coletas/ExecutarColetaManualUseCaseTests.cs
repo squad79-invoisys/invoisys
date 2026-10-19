@@ -1,6 +1,8 @@
 using System.Data.Common;
 using FluentAssertions;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
+using InvoiSys.Application.Coletas.ExecutarColeta;
+using InvoiSys.Application.Common.Coletas;
 using InvoiSys.Application.Common.Abstractions;
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Application.Common.Exceptions;
@@ -69,7 +71,7 @@ public sealed class ExecutarColetaManualUseCaseTests
             TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<BusinessException>();
-        fixture.UnitOfWork.TransacoesIniciadas.Should().Be(0);
+        fixture.UnitOfWork.TransacoesIniciadas.Should().Be(1);
         fixture.UnitOfWork.Commits.Should().Be(1);
         fixture.Execucoes.Adicionadas.Should().ContainSingle();
         fixture.Execucoes.Adicionadas[0].Status.Should().Be(StatusExecucaoColeta.Falhou);
@@ -120,14 +122,15 @@ public sealed class ExecutarColetaManualUseCaseTests
         public Exception? ErroColetor { get; init; }
 
         public ExecutarColetaManualUseCase CriarUseCase() =>
-            new(
-                new UsuarioStub(),
+            new(new UsuarioStub(), new ColetaExecutor(
                 new FonteStub(Fonte),
                 Execucoes,
                 Documentos,
                 new ResolverStub(new CollectorStub(coletados, ErroColetor)),
                 UnitOfWork,
-                NullLogger<ExecutarColetaManualUseCase>.Instance);
+                new LockStub(),
+                TimeProvider.System,
+                NullLogger<ColetaExecutor>.Instance));
     }
 
     private sealed class UsuarioStub : ICurrentUser
@@ -139,6 +142,8 @@ public sealed class ExecutarColetaManualUseCaseTests
 
     private sealed class FonteStub(Fonte fonte) : IFonteRepository
     {
+        public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task AdicionarAsync(Fonte item, CancellationToken token) => Task.CompletedTask;
         public Task<Fonte?> ObterPorIdAsync(Guid id, CancellationToken token) => Task.FromResult<Fonte?>(fonte);
         public Task<(IReadOnlyList<Fonte> Itens, int Total)> ListarAsync(
@@ -149,6 +154,12 @@ public sealed class ExecutarColetaManualUseCaseTests
 
     private sealed class ExecucoesStub : IExecucaoColetaRepository
     {
+        public Task<ExecucaoColeta?> ObterUltimaPorFonteAsync(Guid fonteId, CancellationToken token) =>
+            Task.FromResult<ExecucaoColeta?>(null);
+        public Task<IReadOnlyList<Guid>> ListarFontesEmAndamentoAsync(CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<IReadOnlyList<ExecucaoColeta>> ListarEmAndamentoPorFonteAsync(Guid fonteId, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<ExecucaoColeta>>([]);
         public List<ExecucaoColeta> Adicionadas { get; } = [];
 
         public Task AdicionarAsync(ExecucaoColeta execucao, CancellationToken token)
@@ -244,4 +255,18 @@ public sealed class ExecutarColetaManualUseCaseTests
     }
 
     private sealed class FakeDbException(string message) : DbException(message);
+
+    private sealed class LockStub : IFonteColetaLock, IFonteColetaLease
+    {
+        public IFonteColetaLease? PosseAtual => this;
+        public bool EstaReivindicada => true;
+        public Task<bool> TentarReivindicarAsync(CancellationToken token) => Task.FromResult(true);
+        public Task RenovarAsync(CancellationToken token) => Task.CompletedTask;
+        public Task ValidarTransacaoAsync(System.Data.Common.DbTransaction transaction, CancellationToken token) => Task.CompletedTask;
+        public Task RenovarTransacaoAsync(System.Data.Common.DbTransaction transaction, CancellationToken token) => Task.CompletedTask;
+        public Task<IFonteColetaLease?> TentarAdquirirAsync(Guid fonteId, CancellationToken token) =>
+            Task.FromResult<IFonteColetaLease?>(this);
+        public Task VerificarSessaoAsync(CancellationToken token) => Task.CompletedTask;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }

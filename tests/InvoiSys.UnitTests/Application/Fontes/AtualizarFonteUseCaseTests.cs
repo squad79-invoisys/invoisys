@@ -212,6 +212,8 @@ public sealed class AtualizarFonteUseCaseTests
 
     private sealed class FonteRepositoryStub(Fonte? fonte) : IFonteRepository
     {
+        public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task AdicionarAsync(
             Fonte fonte,
             CancellationToken cancellationToken) =>
