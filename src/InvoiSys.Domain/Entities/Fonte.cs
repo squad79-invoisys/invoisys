@@ -15,11 +15,13 @@ public sealed class Fonte
         TipoFonte tipo,
         int periodicidadeMinutos,
         Guid criadoPorUsuarioId,
+        string contexto,
         string? seletorConteudo = null)
     {
         ValidarNome(nome);
         ValidarUrl(url);
         ValidarPeriodicidade(periodicidadeMinutos);
+        ValidarContexto(contexto);
         ValidarSeletorConteudo(seletorConteudo, tipo);
 
         if (criadoPorUsuarioId == Guid.Empty)
@@ -30,6 +32,7 @@ public sealed class Fonte
         Url = url.Trim();
         Tipo = tipo;
         PeriodicidadeMinutos = periodicidadeMinutos;
+        Contexto = contexto.Trim();
         SeletorConteudo = NormalizarSeletor(seletorConteudo);
         Status = StatusFonte.Ativa;
         CriadoEm = DateTimeOffset.UtcNow;
@@ -42,6 +45,7 @@ public sealed class Fonte
     public TipoFonte Tipo { get; private set; }
     public StatusFonte Status { get; private set; }
     public int PeriodicidadeMinutos { get; private set; }
+    public string Contexto { get; private set; } = string.Empty;
 
     /// <summary>
     /// Seletor CSS opcional que delimita o conteúdo principal da página.
@@ -61,17 +65,20 @@ public sealed class Fonte
         TipoFonte tipo,
         int periodicidadeMinutos,
         Guid usuarioId,
+        string contexto,
         string? seletorConteudo = null)
     {
         ValidarNome(nome);
         ValidarUrl(url);
         ValidarPeriodicidade(periodicidadeMinutos);
+        ValidarContexto(contexto);
         ValidarSeletorConteudo(seletorConteudo, tipo);
 
         Nome = nome.Trim();
         Url = url.Trim();
         Tipo = tipo;
         PeriodicidadeMinutos = periodicidadeMinutos;
+        Contexto = contexto.Trim();
         SeletorConteudo = NormalizarSeletor(seletorConteudo);
         RegistrarAlteracao(usuarioId);
     }
@@ -116,6 +123,15 @@ public sealed class Fonte
     {
         if (periodicidadeMinutos <= 0)
             throw new DomainException("A periodicidade deve ser maior que zero.");
+    }
+
+    private static void ValidarContexto(string contexto)
+    {
+        if (string.IsNullOrWhiteSpace(contexto))
+            throw new DomainException("O contexto da fonte é obrigatório.");
+
+        if (contexto.Trim().Length > 100)
+            throw new DomainException("O contexto da fonte deve ter no máximo 100 caracteres.");
     }
 
     private static void ValidarSeletorConteudo(string? seletorConteudo, TipoFonte tipo)

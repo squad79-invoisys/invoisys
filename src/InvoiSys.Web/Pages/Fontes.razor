@@ -30,6 +30,9 @@
                    aria-label="Filtrar por status">
             <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
         </MudSelect>
+        <MudTextField T="string" @bind-Value="_contextoFiltro" @bind-Value:after="FiltrarPorContextoAsync"
+                      Label="Contexto" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                      DebounceInterval="350" Clearable="true" aria-label="Filtrar fontes por contexto" />
         <MudSelect T="string" Label="Periodicidade" Value="@("Todas")" Variant="Variant.Outlined" Margin="Margin.Dense"
                    aria-label="Filtrar por periodicidade">
             <MudSelectItem Value="@("Todas")">Todas</MudSelectItem>
@@ -60,10 +63,10 @@
             <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
         }
 
-        <MudTable Items="_fontes" Hover="true" Loading="_carregando" Breakpoint="Breakpoint.Sm"
+        <MudTable @ref="_tabela" Items="_fontes" Hover="true" Loading="_carregando" Breakpoint="Breakpoint.Sm"
                   RowsPerPage="10" Elevation="0" Class="fontes-table">
             <HeaderContent>
-                <MudTh>Fonte</MudTh><MudTh>Tipo</MudTh><MudTh>URL</MudTh><MudTh>Status</MudTh>
+                <MudTh>Fonte</MudTh><MudTh>Tipo</MudTh><MudTh>Contexto</MudTh><MudTh>URL</MudTh><MudTh>Status</MudTh>
                 <MudTh>Periodicidade</MudTh><MudTh>Última coleta</MudTh><MudTh Class="actions-column">Ações</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -74,6 +77,7 @@
                     </div>
                 </MudTd>
                 <MudTd DataLabel="Tipo">@FormatarTipo(context.Tipo)</MudTd>
+                <MudTd DataLabel="Contexto">@context.Contexto</MudTd>
                 <MudTd DataLabel="URL">
                     <a class="fonte-url" href="@context.Url" target="_blank" rel="noopener noreferrer" title="@context.Url">@context.Url</a>
                 </MudTd>
@@ -130,6 +134,7 @@
             </div>
             <dl class="details-list">
                 <div><dt>Tipo</dt><dd>@FormatarTipo(fonte.Tipo)</dd></div>
+                <div><dt>Contexto</dt><dd title="@fonte.Contexto">@fonte.Contexto</dd></div>
                 <div><dt>URL</dt><dd title="@fonte.Url">@fonte.Url</dd></div>
                 <div><dt>Periodicidade</dt><dd>@FormatarPeriodicidade(fonte.PeriodicidadeMinutos)</dd></div>
                 <div><dt>Timeout</dt><dd>—</dd></div>
@@ -174,10 +179,12 @@
 @code {
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private IReadOnlyList<FonteResponse> _fontes = [];
+    private MudTable<FonteResponse>? _tabela;
     private bool _carregando = true;
     private int _totalFontes;
     private FonteResponse? _fonteSelecionada;
     private Guid? _fonteEmAlteracaoId;
+    private string? _contextoFiltro;
 
     // A API aceita no máximo 100 itens por página (ListarColetasValidator).
     private const int TamanhoMaximoPagina = 100;
@@ -197,12 +204,18 @@
 
     protected override async Task OnInitializedAsync() => await CarregarFontesAsync();
 
+    private async Task FiltrarPorContextoAsync()
+    {
+        _tabela?.NavigateTo(Page.First);
+        await CarregarFontesAsync();
+    }
+
     private async Task CarregarFontesAsync()
     {
         _carregando = true;
         try
         {
-            var response = await FontesClient.ListarAsync(tamanhoPagina: 50, cancellationToken: _cancellationTokenSource.Token);
+            var response = await FontesClient.ListarAsync(tamanhoPagina: 50, contexto: _contextoFiltro, cancellationToken: _cancellationTokenSource.Token);
             if (!response.Sucesso)
             {
                 Snackbar.Add(response.Mensagem, Severity.Error);

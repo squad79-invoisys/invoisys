@@ -29,7 +29,8 @@ public sealed class CriarFonteUseCaseTests
             "Portal Fiscal",
             "https://exemplo.com/feed.xml",
             TipoFonte.Rss,
-            30);
+            30,
+            "Legislação");
 
         var response = await useCase.ExecutarAsync(
             request,
@@ -37,6 +38,8 @@ public sealed class CriarFonteUseCaseTests
 
         repository.Adicionada.Should().NotBeNull();
         repository.Adicionada!.CriadoPorUsuarioId.Should().Be(usuarioId);
+        repository.Adicionada.Contexto.Should().Be("Legislação");
+        response.Contexto.Should().Be("Legislação");
         response.Id.Should().Be(repository.Adicionada.Id);
         unitOfWork.Commits.Should().Be(1);
         fonteUrlValidator.Chamadas.Should().Be(1);
@@ -59,7 +62,8 @@ public sealed class CriarFonteUseCaseTests
             "Portal Fiscal",
             "https://exemplo.com/feed.xml",
             TipoFonte.Rss,
-            30);
+            30,
+            "Legislação");
 
         var act = () => useCase.ExecutarAsync(
             request,
@@ -113,6 +117,7 @@ public sealed class CriarFonteUseCaseTests
             int tamanhoPagina,
             TipoFonte? tipo,
             StatusFonte? status,
+            string? contexto,
             string? busca,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<Fonte>, int)>(([], 0));
@@ -122,10 +127,15 @@ public sealed class CriarFonteUseCaseTests
     {
         public int Commits { get; private set; }
 
+        public Task BeginTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<int> CommitAsync(CancellationToken cancellationToken)
         {
             Commits++;
             return Task.FromResult(1);
         }
+
+        public Task CommitTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
