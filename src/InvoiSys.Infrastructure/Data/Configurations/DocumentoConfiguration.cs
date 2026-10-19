@@ -49,7 +49,8 @@ public sealed class DocumentoConfiguration : IEntityTypeConfiguration<Documento>
 
         builder.HasIndex(x => x.ExecucaoColetaId);
         builder.HasIndex(x => x.Hash);
-        builder.HasIndex(x => x.UrlOriginal);
+        builder.HasIndex(x => new { x.UrlOriginal, x.Hash })
+            .IsUnique();
         builder.HasIndex(x => x.Contexto);
     }
 }
