@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject AuthClient AuthClient
+@inject NavigationManager NavigationManager
 
 <MudThemeProvider Theme="@InvoiSys.Web.Theme.AppTheme.Default" />
 <MudPopoverProvider />
@@ -16,7 +18,23 @@
         <div class="topbar-actions">
             <MudIconButton Icon="@Icons.Material.Outlined.Search" Size="Size.Small" aria-label="Pesquisar" />
             <MudIconButton Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-label="Ajuda" />
-            <span class="topbar-avatar">AD</span>
+            <AuthorizeView>
+                <Authorized>
+                    @{
+                        var identificacao = UserDisplay.Identificacao(context.User);
+                    }
+                    <span class="topbar-avatar" aria-hidden="true">@UserDisplay.Iniciais(identificacao)</span>
+                    <span class="topbar-user" title="@identificacao">@identificacao</span>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Outlined.Logout"
+                               Disabled="@_saindo"
+                               OnClick="SairAsync"
+                               aria-label="Sair">
+                        Sair
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
         </div>
     </header>
 
@@ -26,3 +44,31 @@
         </div>
     </main>
 </div>
+
+@code {
+    private bool _saindo;
+
+    private async Task SairAsync()
+    {
+        if (_saindo)
+            return;
+
+        _saindo = true;
+
+        try
+        {
+            await AuthClient.LogoutAsync();
+        }
+        catch (Exception exception)
+        {
+            // O AuthClient já limpou o token no finally; o usuário sai mesmo com a API indisponível.
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _saindo = false;
+        }
+
+        NavigationManager.NavigateTo("/login");
+    }
+}

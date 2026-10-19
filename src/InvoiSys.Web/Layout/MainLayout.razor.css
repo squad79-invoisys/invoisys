@@ -4,11 +4,13 @@
 .app-topbar > p { color:#141c29; font-size:14px; font-weight:500; }
 .topbar-actions { align-items:center; display:flex; gap:12px; margin-left:auto; }
 .topbar-avatar { align-items:center; background:#0a9e40; border-radius:50%; color:#fff; display:flex; font-size:11px; font-weight:600; height:36px; justify-content:center; width:36px; }
+.topbar-user { color:#141c29; font-size:14px; font-weight:500; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .app-content { margin-left:230px; min-height:100vh; padding-top:64px; }
 .app-content-inner { margin:0 auto; max-width:1210px; padding:28px 32px; }
 @media (max-width:900px) {
     .app-sidebar { display:none; }
     .app-topbar { left:0; }
+    .topbar-user { display:none; }
     .app-content { margin-left:0; }
     .app-content-inner { padding:24px 18px; }
 }
