@@ -3397,6 +3397,7 @@ Esta tabela registra os endpoints encontrados nos Controllers atuais.
 | POST | `/api/auth/refresh` | anônimo |
 | POST | `/api/auth/logout` | anônimo |
 | POST | `/api/fontes` | Administrador, Operador |
+| POST | `/api/fontes/importar` | Administrador, Operador |
 | GET | `/api/fontes/{id}` | autenticado |
 | GET | `/api/fontes` | autenticado |
 | PUT | `/api/fontes/{id}` | Administrador, Operador |

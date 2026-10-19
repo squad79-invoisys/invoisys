@@ -13,6 +13,7 @@ using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
+using InvoiSys.Application.Fontes.ImportarFontes;
 using InvoiSys.Application.Fontes.ListarFontes;
 using InvoiSys.Application.Historico.ExportarHistorico;
 using InvoiSys.Application.Historico.ListarHistorico;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IAuditoriaService, AuditoriaService>();
 
         services.AddScoped<ICriarFonteUseCase, CriarFonteUseCase>();
+        services.AddScoped<IImportarFontesUseCase, ImportarFontesUseCase>();
         services.AddScoped<IConsultarFonteUseCase, ConsultarFonteUseCase>();
         services.AddScoped<IListarFontesUseCase, ListarFontesUseCase>();
         services.AddScoped<IAtualizarFonteUseCase, AtualizarFonteUseCase>();
