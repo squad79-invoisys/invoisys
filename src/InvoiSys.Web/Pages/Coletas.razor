@@ -168,7 +168,7 @@
 
             @if (_selecionada is null)
             {
-                <MudText Class="mt-4" Color="Color.Secondary">Selecione uma coleta na tabela.</MudText>
+                <MudText Class="mt-4" >Selecione uma coleta na tabela.</MudText>
             }
             else
             {
@@ -180,7 +180,7 @@
                     </MudAvatar>
                     <div class="flex-grow-1">
                         <MudText Typo="Typo.subtitle1">@atual.Nome</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@atual.Tipo</MudText>
+                        <MudText Typo="Typo.caption">@atual.Tipo</MudText>
                     </div>
                     <MudChip T="string" Size="Size.Small" Color="@CorDoStatus(atual.Execucao.Status)" Variant="Variant.Text">
                         @RotuloStatus(atual.Execucao.Status)
@@ -192,7 +192,7 @@
                 @foreach (var (rotulo, valor) in Detalhes(atual))
                 {
                     <div class="d-flex justify-space-between py-1">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@rotulo</MudText>
+                        <MudText Typo="Typo.caption">@rotulo</MudText>
                         <MudText Typo="Typo.body2" Align="Align.Right">@valor</MudText>
                     </div>
                 }
@@ -226,7 +226,7 @@
     </MudAvatar>
     <div>
         <MudText Typo="Typo.subtitle2">Dica rápida</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
+        <MudText Typo="Typo.body2" >
             Use os filtros para encontrar fontes rapidamente e acompanhe o status para evitar interrupções nas coletas.
         </MudText>
     </div>
