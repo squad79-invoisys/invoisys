@@ -1,30 +1,415 @@
 @page "/"
 @attribute [Authorize]
+@using System.Globalization
+@using System.Net
+@using InvoiSys.Application.Coletas
+@using InvoiSys.Application.Dashboard.ObterResumo
+@using InvoiSys.Domain.Enums
+@using InvoiSys.Web.Components.Fontes
+@inject IDashboardClient DashboardClient
+@inject IColetasClient ColetasClient
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Dashboard - InvoiSys</PageTitle>
 
 <MudText Typo="Typo.h4">Dashboard</MudText>
-<MudText Typo="Typo.body1" Color="Color.Secondary">
-    Resumo das fontes, coletas e documentos.
+<MudText Typo="Typo.body1" Class="page-subtitle">
+    Resumo das fontes e das coletas
 </MudText>
 
-<MudGrid Class="mt-4">
-    <MudItem xs="12" sm="4">
-        <MudPaper Class="pa-5">
-            <MudText Typo="Typo.subtitle2">Fontes</MudText>
-            <MudText Typo="Typo.h5">Gerenciamento</MudText>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" sm="4">
-        <MudPaper Class="pa-5">
-            <MudText Typo="Typo.subtitle2">Coletas</MudText>
-            <MudText Typo="Typo.h5">Histórico</MudText>
-        </MudPaper>
-    </MudItem>
-    <MudItem xs="12" sm="4">
-        <MudPaper Class="pa-5">
-            <MudText Typo="Typo.subtitle2">Documentos</MudText>
-            <MudText Typo="Typo.h5">Centralização</MudText>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+@if (!string.IsNullOrWhiteSpace(_erro))
+{
+    <MudAlert Severity="Severity.Error" Class="mt-4">
+        @_erro
+        <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="ml-2" OnClick="CarregarAsync">
+            Tentar novamente
+        </MudButton>
+    </MudAlert>
+}
+
+@if (_carregando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-4" />
+}
+
+@if (_resumo is { } resumo)
+{
+    @* ===== Indicadores ===== *@
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" sm="6" md="3">
+            <SummaryCard Title="Total de fontes"
+                         Value="@(resumo.FontesAtivas + resumo.FontesInativas)"
+                         Icon="@Icons.Material.Outlined.Adjust"
+                         Description="@DescricaoInativas(resumo.FontesInativas)"
+                         Tone="@(resumo.FontesInativas == 0 ? "success" : "warning")" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <SummaryCard Title="Fontes ativas"
+                         Value="@resumo.FontesAtivas"
+                         Icon="@Icons.Material.Filled.Check"
+                         Description="@($"{PercentualAtivas(resumo)} do total")" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <SummaryCard Title="Coletas realizadas"
+                         Value="@resumo.ColetasUltimas24h"
+                         Icon="@Icons.Material.Filled.SyncAlt"
+                         Description="Últimas 24h" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <SummaryCard Title="Falhas recentes"
+                         Value="@resumo.ColetasComFalhaUltimas24h"
+                         Icon="@Icons.Material.Filled.PriorityHigh"
+                         Description="Últimas 24h"
+                         Tone="@(resumo.ColetasComFalhaUltimas24h == 0 ? "success" : "error")" />
+        </MudItem>
+    </MudGrid>
+
+    @* ===== Últimas coletas e documentos recentes ===== *@
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="6">
+            <section class="dash-panel">
+                <header class="dash-panel-header">
+                    <h2>Status das últimas coletas</h2>
+                    <a href="/coletas">Ver todas</a>
+                </header>
+
+                @if (resumo.ExecucoesRecentes.Count == 0)
+                {
+                    <p class="dash-empty">Nenhuma coleta registrada ainda.</p>
+                }
+                else
+                {
+                    <div class="dash-table-wrapper">
+                        <table class="dash-table">
+                            <thead>
+                                <tr>
+                                    <th>Fonte</th>
+                                    <th>Última execução</th>
+                                    <th>Status</th>
+                                    <th class="num">Itens</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var execucao in resumo.ExecucoesRecentes)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="dash-cell">
+                                                <span class="dash-dot @ClasseStatus(execucao.Status)" aria-hidden="true"></span>
+                                                <span class="dash-cell-text">@execucao.FonteNome</span>
+                                            </div>
+                                        </td>
+                                        <td class="muted">@FormatarDataHora(execucao.Inicio)</td>
+                                        <td>
+                                            <span class="dash-status @ClasseStatus(execucao.Status)">
+                                                @RotuloStatus(execucao.Status)
+                                            </span>
+                                        </td>
+                                        <td class="num">
+                                            @(execucao.Status == StatusExecucaoColeta.EmAndamento
+                                                ? "—"
+                                                : execucao.QuantidadeDocumentos.ToString())
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <footer class="dash-panel-footer">
+                    <a href="/coletas">Ver todas as coletas ›</a>
+                </footer>
+            </section>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <section class="dash-panel">
+                <header class="dash-panel-header">
+                    <h2>Documentos recentes</h2>
+                    <a href="/documentos">Ver todos</a>
+                </header>
+
+                @if (resumo.DocumentosRecentes.Count == 0)
+                {
+                    <p class="dash-empty">Nenhum documento coletado ainda.</p>
+                }
+                else
+                {
+                    <div class="dash-table-wrapper">
+                        <table class="dash-table">
+                            <thead>
+                                <tr>
+                                    <th>Documento</th>
+                                    <th>Fonte</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var documento in resumo.DocumentosRecentes)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="dash-cell">
+                                                <span class="dash-tipo" title="@documento.Tipo">@documento.Tipo</span>
+                                                <span class="dash-cell-text">@documento.Titulo</span>
+                                            </div>
+                                        </td>
+                                        <td class="muted">@documento.Origem</td>
+                                        <td class="muted">@FormatarHoraOuData(documento.DataColeta)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <footer class="dash-panel-footer">
+                    <a href="/documentos">Acessar documentos ›</a>
+                </footer>
+            </section>
+        </MudItem>
+    </MudGrid>
+
+    @* ===== Coletas por período e ações rápidas ===== *@
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="6">
+            <section class="dash-panel">
+                <header class="dash-panel-header">
+                    <h2>Coletas por período</h2>
+                    <span class="dash-period">Últimos 7 dias</span>
+                </header>
+
+                @if (_graficoIndisponivel)
+                {
+                    <p class="dash-empty">Não foi possível carregar o gráfico.</p>
+                }
+                else
+                {
+                    <div class="dash-chart" role="img" aria-label="Quantidade de coletas por dia nos últimos 7 dias">
+                        @foreach (var barra in _barras)
+                        {
+                            <div class="dash-bar-column">
+                                <span class="dash-bar-value">@barra.Total</span>
+                                <div class="dash-bar" style="height:@AlturaDaBarra(barra.Total)"></div>
+                                <span class="dash-bar-label">@barra.Rotulo</span>
+                            </div>
+                        }
+                    </div>
+
+                    @if (_graficoParcial)
+                    {
+                        <p class="dash-note">Considera apenas as últimas @TamanhoMaximoPagina execuções.</p>
+                    }
+                }
+            </section>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <section class="dash-panel">
+                <header class="dash-panel-header">
+                    <h2>Ações rápidas</h2>
+                </header>
+
+                <div class="dash-actions">
+                    <button type="button" class="dash-action" @onclick="NovaFonteAsync">
+                        <MudIcon Icon="@Icons.Material.Filled.Add" Class="dash-action-icon" />
+                        <span class="dash-action-text">
+                            <strong>Nova fonte</strong>
+                            <small>Cadastrar uma nova fonte de informação</small>
+                        </span>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    </button>
+
+                    <button type="button" class="dash-action" @onclick='() => Navigation.NavigateTo("/coletas")'>
+                        <MudIcon Icon="@Icons.Material.Filled.PlayArrow" Class="dash-action-icon" />
+                        <span class="dash-action-text">
+                            <strong>Executar coleta</strong>
+                            <small>Iniciar uma coleta manual agora</small>
+                        </span>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    </button>
+                    
+                    <button type="button" class="dash-action" @onclick='() => Navigation.NavigateTo("/fontes")'>
+                        <MudIcon Icon="@Icons.Material.Outlined.Adjust" Class="dash-action-icon" />
+                        <span class="dash-action-text">
+                            <strong>Gerenciar fontes</strong>
+                            <small>Visualizar e editar fontes existentes</small>
+                        </span>
+                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+                    </button>
+                </div>
+            </section>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    // A API aceita no máximo 100 itens por página (ListarColetasValidator).
+    private const int TamanhoMaximoPagina = 100;
+    private const int DiasDoGrafico = 7;
+
+    private sealed record BarraColetas(string Rotulo, int Total);
+
+    private ResumoDashboardResponse? _resumo;
+    private List<BarraColetas> _barras = new();
+    private int _maiorTotal = 1;
+
+    private bool _carregando = true;
+    private bool _graficoIndisponivel;
+    private bool _graficoParcial;
+    private string? _erro;
+
+    protected override Task OnInitializedAsync() => CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        _erro = null;
+
+        try
+        {
+            await Task.WhenAll(CarregarResumoAsync(), CarregarGraficoAsync());
+        }
+        catch (Refit.ApiException exception)
+        {
+            _erro = MensagemDeErro(exception);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _erro = "Não foi possível acessar a API. Tente novamente.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private async Task CarregarResumoAsync()
+    {
+        var resposta = await DashboardClient.ObterResumoAsync();
+        _resumo = resposta.Dados;
+    }
+
+    // Não existe endpoint de série diária: o gráfico agrupa por dia as últimas execuções
+    // devolvidas pela listagem de coletas (a API ordena da mais recente para a mais antiga).
+    // Se esse gráfico falhar, o restante do dashboard continua funcionando.
+    private async Task CarregarGraficoAsync()
+    {
+        try
+        {
+            var resposta = await ColetasClient.ListarAsync(1, TamanhoMaximoPagina);
+            var dados = resposta.Dados;
+            IReadOnlyList<ExecucaoColetaResponse> execucoes = dados?.Itens ?? [];
+
+            var hoje = DateTime.Today;
+            var dias = Enumerable.Range(0, DiasDoGrafico)
+                .Select(i => hoje.AddDays(i - (DiasDoGrafico - 1)))
+                .ToList();
+
+            var porDia = execucoes
+                .GroupBy(execucao => execucao.Inicio.ToLocalTime().Date)
+                .ToDictionary(grupo => grupo.Key, grupo => grupo.Count());
+
+            _barras = dias
+                .Select(dia => new BarraColetas(dia.ToString("dd/MM"), porDia.GetValueOrDefault(dia)))
+                .ToList();
+
+            _maiorTotal = Math.Max(1, _barras.Max(barra => barra.Total));
+
+            // A lista chega do mais recente ao mais antigo: se a mais antiga ainda cai dentro
+            // dos 7 dias e existem mais execuções no servidor, os dias mais antigos ficam incompletos.
+            var maisAntiga = execucoes.Count > 0
+                ? execucoes.Min(execucao => execucao.Inicio).ToLocalTime().Date
+                : DateTime.MinValue;
+
+            _graficoParcial = (dados?.Total ?? 0) > execucoes.Count && maisAntiga > dias[0];
+            _graficoIndisponivel = false;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _graficoIndisponivel = true;
+        }
+    }
+
+    private async Task NovaFonteAsync()
+    {
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<NovaFonteDialog>("Nova fonte", options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Fonte criada com sucesso.", Severity.Success);
+            await CarregarAsync();
+        }
+    }
+
+    // ===== Apresentação =====
+    private static string DescricaoInativas(int inativas) =>
+        inativas switch
+        {
+            0 => "Nenhuma inativa",
+            1 => "1 inativa",
+            _ => $"{inativas} inativas"
+        };
+
+    private static string PercentualAtivas(ResumoDashboardResponse resumo)
+    {
+        var total = resumo.FontesAtivas + resumo.FontesInativas;
+        return total == 0 ? "0%" : $"{resumo.FontesAtivas * 100d / total:0.#}%";
+    }
+
+    // Altura em % precisa usar ponto decimal (CSS), independente da cultura do navegador.
+    private string AlturaDaBarra(int total) =>
+        total == 0
+            ? "2px"
+            : $"{(total * 100d / _maiorTotal).ToString("0.##", CultureInfo.InvariantCulture)}%";
+
+    private static string RotuloStatus(StatusExecucaoColeta status) => status switch
+    {
+        StatusExecucaoColeta.Concluida => "Concluída",
+        StatusExecucaoColeta.EmAndamento => "Em andamento",
+        StatusExecucaoColeta.Falhou => "Falhou",
+        _ => status.ToString()
+    };
+
+    private static string ClasseStatus(StatusExecucaoColeta status) => status switch
+    {
+        StatusExecucaoColeta.Concluida => "concluida",
+        StatusExecucaoColeta.EmAndamento => "andamento",
+        StatusExecucaoColeta.Falhou => "falhou",
+        _ => "andamento"
+    };
+
+    private static string FormatarDataHora(DateTimeOffset valor) =>
+        valor.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    // Hoje mostra só a hora (como no layout); dias anteriores mostram dia e hora.
+    private static string FormatarHoraOuData(DateTimeOffset valor)
+    {
+        var local = valor.ToLocalTime();
+        return local.Date == DateTime.Today
+            ? local.ToString("HH:mm")
+            : local.ToString("dd/MM HH:mm");
+    }
+
+    private static string MensagemDeErro(Refit.ApiException exception) =>
+        exception.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized => "Sua sessão expirou. Entre novamente.",
+            HttpStatusCode.Forbidden => "Você não tem permissão para ver o dashboard.",
+            _ => "Não foi possível carregar o dashboard."
+        };
+}

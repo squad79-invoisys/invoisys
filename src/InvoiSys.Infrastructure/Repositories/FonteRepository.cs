@@ -26,6 +26,7 @@ public sealed class FonteRepository(
         int tamanhoPagina,
         TipoFonte? tipo,
         StatusFonte? status,
+        string? contexto,
         string? busca,
         CancellationToken cancellationToken)
     {
@@ -38,6 +39,12 @@ public sealed class FonteRepository(
 
         if (status is not null)
             query = query.Where(fonte => fonte.Status == status);
+
+        if (!string.IsNullOrWhiteSpace(contexto))
+        {
+            var contextoNormalizado = contexto.Trim();
+            query = query.Where(fonte => fonte.Contexto == contextoNormalizado);
+        }
 
         if (!string.IsNullOrWhiteSpace(busca))
         {

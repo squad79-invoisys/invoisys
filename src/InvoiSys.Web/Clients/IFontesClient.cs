@@ -12,6 +12,7 @@ public interface IFontesClient
     Task<Responses.ApiResponse<Responses.PagedResponse<FonteResponse>>> ListarAsync(
         [Query] int pagina = 1,
         [Query] int tamanhoPagina = 50,
+        [Query] string? contexto = null,
         CancellationToken cancellationToken = default);
 
     [Post("/api/fontes")]
