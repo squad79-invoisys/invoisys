@@ -12,6 +12,7 @@ public interface IFonteRepository
         int tamanhoPagina,
         TipoFonte? tipo,
         StatusFonte? status,
+        string? contexto,
         string? busca,
         CancellationToken cancellationToken);
 }
