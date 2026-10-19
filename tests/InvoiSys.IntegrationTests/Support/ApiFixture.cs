@@ -190,7 +190,7 @@ public sealed class ApiFixture : IAsyncLifetime
     {
         using var response = await Admin.PostAsync(
             "/api/fontes",
-            new CriarFonteRequest(nome, url, tipo, 60),
+            new CriarFonteRequest(nome, url, tipo, 60, "Outro"),
             cancellationToken);
 
         await response.GarantirSucessoAsync(cancellationToken);
