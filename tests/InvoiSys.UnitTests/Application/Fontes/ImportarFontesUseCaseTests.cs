@@ -81,8 +81,8 @@ public sealed class ImportarFontesUseCaseTests
         response.Rejeitadas.Select(r => r.Linha)
             .Should().Equal(3, 4, 5, 6, 7, 8, 9, 10);
 
-        Motivo(response, 3).Should().Be("Tipo inválido: 'Xml'. Use Rss, Atom ou WebHtml.");
-        Motivo(response, 4).Should().Be("Tipo inválido: '1'. Use Rss, Atom ou WebHtml.");
+        Motivo(response, 3).Should().Be("Tipo inválido: 'Xml'. Use Rss, Atom, WebHtml ou Pdf.");
+        Motivo(response, 4).Should().Be("Tipo inválido: '1'. Use Rss, Atom, WebHtml ou Pdf.");
         Motivo(response, 5).Should().Be(
             "Periodicidade inválida: 'abc'. Informe um número inteiro de minutos.");
         Motivo(response, 6).Should().Contain("Periodicidade");

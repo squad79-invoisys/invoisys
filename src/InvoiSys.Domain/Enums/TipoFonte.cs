@@ -4,5 +4,6 @@ public enum TipoFonte
 {
     Rss = 1,
     Atom = 2,
-    WebHtml = 3
+    WebHtml = 3,
+    Pdf = 4
 }

@@ -63,7 +63,7 @@ public sealed class FontesController(
     [SwaggerOperation(
         Summary = "Importa fontes em lote por CSV",
         Description = "Recebe um arquivo CSV (UTF-8, até 1 MB e 100 linhas de dados) no campo 'arquivo', "
-            + "com cabeçalho contendo as colunas nome, url, tipo (Rss, Atom ou WebHtml) e periodicidade "
+            + "com cabeçalho contendo as colunas nome, url, tipo (Rss, Atom, WebHtml ou Pdf) e periodicidade "
             + "(minutos); a coluna contexto é opcional (padrão \"Outro\"). O separador pode ser vírgula "
             + "ou ponto e vírgula. As linhas válidas são cadastradas mesmo que outras sejam inválidas; "
             + "as rejeitadas são listadas com o número da linha e o motivo.",
