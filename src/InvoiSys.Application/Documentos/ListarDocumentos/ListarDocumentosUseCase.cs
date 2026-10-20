@@ -19,6 +19,9 @@ public sealed class ListarDocumentosUseCase(
             request.TamanhoPagina,
             request.Contexto,
             request.Busca,
+            request.Tipo,
+            request.DataInicio?.ToUniversalTime(),
+            request.DataFim?.ToUniversalTime(),
             cancellationToken);
 
         return new PagedResponse<DocumentoResponse>(

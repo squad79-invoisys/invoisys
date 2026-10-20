@@ -1,45 +1,240 @@
 @page "/documentos"
 @attribute [Authorize]
+@implements IDisposable
 @using InvoiSys.Application.Documentos
+@using InvoiSys.Web.Components.Fontes
 @inject IDocumentosClient DocumentosClient
+@inject ISnackbar Snackbar
 
 <PageTitle>Documentos - InvoiSys</PageTitle>
 
-<MudText Typo="Typo.h4">Documentos</MudText>
-<MudText Typo="Typo.body1">
-    Documentos encontrados pelas rotinas de coleta.
-</MudText>
+<section class="documentos-page" aria-label="Documentos">
+    <header class="documentos-header">
+        <MudText Typo="Typo.h3" Class="documentos-title">Documentos</MudText>
+        <MudText Typo="Typo.body1">Consulte os documentos encontrados pelas rotinas de coleta</MudText>
+    </header>
 
-<MudTextField T="string" @bind-Value="_contextoFiltro" @bind-Value:after="CarregarDocumentosAsync"
-              Label="Contexto" Variant="Variant.Outlined" Immediate="true" DebounceInterval="350"
-              Clearable="true" Class="mt-4" aria-label="Filtrar documentos por contexto" />
+    <div class="documentos-filter-bar">
+        <MudTextField T="string" @bind-Value="_busca" @bind-Value:after="FiltrarAsync"
+                      Placeholder="Buscar por título ou origem..." Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" DebounceInterval="350" Clearable="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search"
+                      aria-label="Buscar documento" />
+        <MudSelect T="string" @bind-Value="_tipo" @bind-Value:after="FiltrarAsync" Label="Tipo"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" aria-label="Filtrar por tipo">
+            <MudSelectItem T="string" Value="@TodosTipos">Todos</MudSelectItem>
+            <MudSelectItem T="string" Value="@("RSS")">RSS</MudSelectItem>
+            <MudSelectItem T="string" Value="@("ATOM")">Atom</MudSelectItem>
+            <MudSelectItem T="string" Value="@("WEB")">Web HTML</MudSelectItem>
+        </MudSelect>
+        <MudDateRangePicker @bind-DateRange="_periodo" @bind-DateRange:after="FiltrarAsync" Label="Data da coleta"
+                            Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                            DateFormat="dd/MM/yyyy" aria-label="Filtrar por data da coleta" />
+        <MudTextField T="string" @bind-Value="_contexto" @bind-Value:after="FiltrarAsync"
+                      Label="Contexto" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                      DebounceInterval="350" Clearable="true" aria-label="Filtrar documentos por contexto" />
+    </div>
 
-<MudTable Items="_documentos" Hover="true" Class="mt-4">
-    <HeaderContent>
-        <MudTh>Título</MudTh>
-        <MudTh>Tipo</MudTh>
-        <MudTh>Contexto</MudTh>
-        <MudTh>Origem</MudTh>
-        <MudTh>Data da coleta</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Título">@context.Titulo</MudTd>
-        <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
-        <MudTd DataLabel="Contexto">@context.Contexto</MudTd>
-        <MudTd DataLabel="Origem">@context.Origem</MudTd>
-        <MudTd DataLabel="Data">@context.DataColeta.LocalDateTime</MudTd>
-    </RowTemplate>
-</MudTable>
+    <div class="documentos-summary" aria-label="Resumo dos documentos">
+        <SummaryCard Title="Total de documentos" Value="@_total" Icon="@Icons.Material.Outlined.Description"
+                     Tone="success" Description="Conforme os filtros aplicados" />
+    </div>
+
+    <div class="documentos-data-grid">
+        <div class="documentos-table-card">
+            <MudTable @ref="_tabela" T="DocumentoResponse" ServerData="CarregarPaginaAsync" Hover="true"
+                      Breakpoint="Breakpoint.Sm" RowsPerPage="10" Elevation="0" Class="documentos-table"
+                      OnRowClick="SelecionarDocumentoAsync" RowClassFunc="ObterClasseLinha"
+                      LoadingProgressColor="Color.Primary">
+                <HeaderContent>
+                    <MudTh>Título</MudTh><MudTh>Tipo</MudTh><MudTh>Contexto</MudTh><MudTh>Origem</MudTh>
+                    <MudTh>Publicação</MudTh><MudTh>Coleta</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Título"><span class="documento-titulo" title="@context.Titulo">@context.Titulo</span></MudTd>
+                    <MudTd DataLabel="Tipo"><span class="tipo-badge">@FormatarTipo(context.Tipo)</span></MudTd>
+                    <MudTd DataLabel="Contexto"><span title="@context.Contexto">@context.Contexto</span></MudTd>
+                    <MudTd DataLabel="Origem"><span title="@context.Origem">@context.Origem</span></MudTd>
+                    <MudTd DataLabel="Publicação">@FormatarData(context.DataPublicacao)</MudTd>
+                    <MudTd DataLabel="Coleta">@FormatarData(context.DataColeta)</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="empty-state">
+                        <MudIcon Icon="@Icons.Material.Outlined.Description" Size="Size.Large" />
+                        <MudText Typo="Typo.subtitle1">Nenhum documento encontrado</MudText>
+                        <MudText Typo="Typo.body2">Ajuste os filtros ou execute uma coleta.</MudText>
+                    </div>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText Typo="Typo.body2">Carregando documentos...</MudText>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" RowsPerPageString="por página"
+                                   InfoFormat="Exibindo {first_item}–{last_item} de {all_items} documentos" />
+                </PagerContent>
+            </MudTable>
+        </div>
+
+        <aside class="documento-details-card" aria-label="Detalhes do documento">
+            <h2>Detalhes do documento</h2>
+            @if (_carregandoDetalhe)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-4" />
+            }
+            else if (_documentoSelecionado is { } documento)
+            {
+                <dl class="details-list">
+                    <div><dt>Título</dt><dd>@documento.Titulo</dd></div>
+                    <div>
+                        <dt>URL original</dt>
+                        <dd>
+                            @if (EhUrlNavegavel(documento.UrlOriginal))
+                            {
+                                <a class="documento-url" href="@documento.UrlOriginal" target="_blank"
+                                   rel="noopener noreferrer" title="@documento.UrlOriginal">@documento.UrlOriginal</a>
+                            }
+                            else
+                            {
+                                <span class="documento-url" title="@documento.UrlOriginal">@documento.UrlOriginal</span>
+                            }
+                        </dd>
+                    </div>
+                    <div><dt>Origem</dt><dd>@documento.Origem</dd></div>
+                    <div><dt>Tipo</dt><dd>@FormatarTipo(documento.Tipo)</dd></div>
+                    <div><dt>Data de publicação</dt><dd>@FormatarData(documento.DataPublicacao)</dd></div>
+                    <div><dt>Data de coleta</dt><dd>@FormatarData(documento.DataColeta)</dd></div>
+                    <div>
+                        <dt>Conteúdo textual</dt>
+                        <dd class="documento-conteudo">
+                            @(string.IsNullOrWhiteSpace(documento.ConteudoTextual) ? "Sem conteúdo textual." : documento.ConteudoTextual)
+                        </dd>
+                    </div>
+                </dl>
+            }
+            else
+            {
+                <div class="details-empty">Selecione um documento para visualizar os detalhes.</div>
+            }
+        </aside>
+    </div>
+</section>
 
 @code {
-    private IReadOnlyList<DocumentoResponse> _documentos = [];
-    private string? _contextoFiltro;
+    private const string TodosTipos = "";
 
-    protected override async Task OnInitializedAsync() => await CarregarDocumentosAsync();
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private MudTable<DocumentoResponse>? _tabela;
+    private string? _busca;
+    private string _tipo = TodosTipos;
+    private DateRange? _periodo;
+    private string? _contexto;
+    private int _total;
+    private DocumentoResponse? _documentoSelecionado;
+    private bool _carregandoDetalhe;
 
-    private async Task CarregarDocumentosAsync()
+    private async Task FiltrarAsync()
     {
-        var response = await DocumentosClient.ListarAsync(contexto: _contextoFiltro);
-        _documentos = response.Dados?.Itens ?? [];
+        if (_tabela is null)
+            return;
+
+        _tabela.NavigateTo(Page.First);
+        await _tabela.ReloadServerData();
+    }
+
+    private async Task<TableData<DocumentoResponse>> CarregarPaginaAsync(TableState state, CancellationToken cancellationToken)
+    {
+        using var cancelamento = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationTokenSource.Token);
+        try
+        {
+            var response = await DocumentosClient.ListarAsync(
+                pagina: state.Page + 1,
+                tamanhoPagina: state.PageSize,
+                contexto: _contexto,
+                busca: _busca,
+                tipo: string.IsNullOrEmpty(_tipo) ? null : _tipo,
+                dataInicio: InicioDoDia(_periodo?.Start),
+                dataFim: FimDoDia(_periodo?.End),
+                cancellationToken: cancelamento.Token);
+
+            if (!response.Sucesso)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return new TableData<DocumentoResponse> { Items = [], TotalItems = 0 };
+            }
+
+            // O card de total fica fora da tabela; atualiza a página para refletir o novo total.
+            _total = response.Dados?.Total ?? 0;
+            StateHasChanged();
+            return new TableData<DocumentoResponse>
+            {
+                Items = response.Dados?.Itens ?? [],
+                TotalItems = _total
+            };
+        }
+        catch (OperationCanceledException) when (cancelamento.IsCancellationRequested)
+        {
+            return new TableData<DocumentoResponse> { Items = [], TotalItems = _total };
+        }
+        catch (Exception exception) when (exception is Refit.ApiException or HttpRequestException)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível carregar os documentos. Tente novamente.", Severity.Error);
+            return new TableData<DocumentoResponse> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task SelecionarDocumentoAsync(TableRowClickEventArgs<DocumentoResponse> args)
+    {
+        if (args.Item is null)
+            return;
+
+        _carregandoDetalhe = true;
+        try
+        {
+            var response = await DocumentosClient.ObterPorIdAsync(args.Item.Id, _cancellationTokenSource.Token);
+            if (!response.Sucesso || response.Dados is null)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return;
+            }
+
+            _documentoSelecionado = response.Dados;
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Exception exception) when (exception is Refit.ApiException or HttpRequestException)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível carregar o documento. Tente novamente.", Severity.Error);
+        }
+        finally { _carregandoDetalhe = false; }
+    }
+
+    private string ObterClasseLinha(DocumentoResponse documento, int _) =>
+        documento.Id == _documentoSelecionado?.Id ? "documento-selecionado" : string.Empty;
+
+    private static DateTimeOffset? InicioDoDia(DateTime? data) =>
+        data is { } valor ? new DateTimeOffset(valor.Date, TimeZoneInfo.Local.GetUtcOffset(valor.Date)) : null;
+
+    private static DateTimeOffset? FimDoDia(DateTime? data) =>
+        data is { } valor
+            ? new DateTimeOffset(valor.Date.AddDays(1).AddTicks(-1), TimeZoneInfo.Local.GetUtcOffset(valor.Date))
+            : null;
+
+    private static bool EhUrlNavegavel(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static string FormatarTipo(string tipo) => tipo.ToUpperInvariant() switch
+    {
+        "RSS" => "RSS", "ATOM" => "Atom", "WEB" => "Web HTML", _ => tipo
+    };
+
+    private static string FormatarData(DateTimeOffset? data) =>
+        data is { } valor ? valor.LocalDateTime.ToString("dd/MM/yyyy HH:mm") : "—";
+
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
     }
 }

@@ -67,7 +67,8 @@ public sealed class ExecutarColetaManualContextoTests
         }
         public Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken token) => Task.FromResult<Documento?>(null);
         public Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(int pagina, int tamanhoPagina,
-            string? contexto, string? busca, CancellationToken token) =>
+            string? contexto, string? busca, string? tipo, DateTimeOffset? dataInicio, DateTimeOffset? dataFim,
+            CancellationToken token) =>
             Task.FromResult<(IReadOnlyList<Documento>, int)>(([], 0));
     }
 

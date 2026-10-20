@@ -27,6 +27,9 @@ public sealed class DocumentoRepository(
         int tamanhoPagina,
         string? contexto,
         string? busca,
+        string? tipo,
+        DateTimeOffset? dataInicio,
+        DateTimeOffset? dataFim,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Documentos
@@ -45,6 +48,18 @@ public sealed class DocumentoRepository(
                 EF.Functions.ILike(documento.Titulo, $"%{busca}%") ||
                 EF.Functions.ILike(documento.Origem, $"%{busca}%"));
         }
+
+        if (!string.IsNullOrWhiteSpace(tipo))
+        {
+            var tipoNormalizado = tipo.Trim().ToUpperInvariant();
+            query = query.Where(documento => documento.Tipo == tipoNormalizado);
+        }
+
+        if (dataInicio.HasValue)
+            query = query.Where(documento => documento.DataColeta >= dataInicio.Value);
+
+        if (dataFim.HasValue)
+            query = query.Where(documento => documento.DataColeta <= dataFim.Value);
 
         var total = await query.CountAsync(cancellationToken);
 
