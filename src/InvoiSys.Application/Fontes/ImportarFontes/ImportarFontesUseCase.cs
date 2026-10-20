@@ -83,7 +83,7 @@ public sealed class ImportarFontesUseCase(
         var tipoNome = Enum.GetNames<TipoFonte>().FirstOrDefault(
             n => string.Equals(n, tipoTexto, StringComparison.OrdinalIgnoreCase));
         if (tipoNome is null)
-            return $"Tipo inválido: '{tipoTexto}'. Use Rss, Atom ou WebHtml.";
+            return $"Tipo inválido: '{tipoTexto}'. Use Rss, Atom, WebHtml ou Pdf.";
 
         var tipo = Enum.Parse<TipoFonte>(tipoNome);
 

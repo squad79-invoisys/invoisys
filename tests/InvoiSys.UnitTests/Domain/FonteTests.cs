@@ -84,4 +84,41 @@ public sealed class FonteTests
         act.Should().Throw<DomainException>();
         fonte.Contexto.Should().Be("MOC");
     }
+
+    [Fact]
+    public void CriarFonte_DeveLancarDomainException_QuandoSeletorEmFontePdf()
+    {
+        var act = () => new Fonte(
+            "Manual NF-e",
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            30,
+            Guid.NewGuid(),
+            "Manuais",
+            "#conteudo");
+
+        act.Should()
+            .Throw<DomainException>()
+            .WithMessage("O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
+    }
+
+    [Fact]
+    public void Atualizar_DeveLancarDomainException_QuandoSeletorEmFontePdf()
+    {
+        var fonte = new Fonte(
+            "Manual NF-e",
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            30,
+            Guid.NewGuid(),
+            "Manuais");
+
+        var act = () => fonte.Atualizar(
+            fonte.Nome, fonte.Url, TipoFonte.Pdf, 30, Guid.NewGuid(), fonte.Contexto, "#conteudo");
+
+        act.Should()
+            .Throw<DomainException>()
+            .WithMessage("O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
+        fonte.SeletorConteudo.Should().BeNull();
+    }
 }

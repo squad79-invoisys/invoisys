@@ -219,6 +219,58 @@ public sealed class FonteUrlValidatorTests
             .WithMessage("Não foi possível ler o conteúdo retornado pela URL");
     }
 
+    [Fact]
+    public async Task ValidarAsync_DeveAceitarPdf_QuandoConteudoComecaComAssinaturaPdf()
+    {
+        var validator = CriarValidator((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(Encoding.ASCII.GetBytes("%PDF-1.7\n%âãÏÓ\n"))
+            }));
+
+        var act = () => validator.ValidarAsync(
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            TestContext.Current.CancellationToken);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task ValidarAsync_DeveLerApenasOInicioDoPdf_QuandoArquivoEGrande()
+    {
+        var content = new ConteudoInfinito(Encoding.ASCII.GetBytes("%PDF-1.7\n"));
+        var validator = CriarValidator((_, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = content }));
+
+        var act = () => validator.ValidarAsync(
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            TestContext.Current.CancellationToken);
+
+        await act.Should().NotThrowAsync();
+        content.BytesLidos.Should().BeLessThanOrEqualTo(1024);
+    }
+
+    [Theory]
+    [InlineData("<html><body>Página</body></html>", "O conteúdo da URL não é um arquivo PDF válido")]
+    [InlineData("", "A URL retornou conteúdo vazio")]
+    public async Task ValidarAsync_DeveLancarBusinessException_QuandoTipoPdfEConteudoNaoEPdf(
+        string content,
+        string mensagem)
+    {
+        var validator = CriarValidator(HttpStatusCode.OK, content);
+
+        var act = () => validator.ValidarAsync(
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            TestContext.Current.CancellationToken);
+
+        await act.Should()
+            .ThrowAsync<BusinessException>()
+            .WithMessage(mensagem);
+    }
+
     private static FonteUrlValidator CriarValidator(
         HttpStatusCode statusCode,
         string content) =>
@@ -261,5 +313,68 @@ public sealed class FonteUrlValidatorTests
             length = 0;
             return false;
         }
+    }
+
+    private sealed class ConteudoInfinito(byte[] inicio) : HttpContent
+    {
+        private readonly FluxoInfinito fluxo = new(inicio);
+
+        public long BytesLidos => fluxo.BytesLidos;
+
+        protected override Task<Stream> CreateContentReadStreamAsync() =>
+            Task.FromResult<Stream>(fluxo);
+
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context) =>
+            fluxo.CopyToAsync(stream);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    private sealed class FluxoInfinito(byte[] inicio) : Stream
+    {
+        public long BytesLidos { get; private set; }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => BytesLidos;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                buffer[offset + i] = BytesLidos + i < inicio.Length
+                    ? inicio[BytesLidos + i]
+                    : (byte)0;
+            }
+
+            BytesLidos += count;
+            return count;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) =>
+            throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
     }
 }
