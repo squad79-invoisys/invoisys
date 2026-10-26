@@ -32,7 +32,18 @@ public sealed class ExecutarColetaManualUseCase(
         if (fonte.Status != StatusFonte.Ativa)
             throw new BusinessException("A fonte precisa estar ativa para realizar a coleta.");
 
+        using var fonteScope = logger.BeginScope(
+            "FonteId:{FonteId} FonteNome:{FonteNome} FonteTipo:{FonteTipo}",
+            fonte.Id, fonte.Nome, fonte.Tipo);
+
         var execucao = ExecucaoColeta.IniciarManual(fonte.Id, usuarioId);
+
+        using var coletaScope = logger.BeginScope(
+            "ColetaId:{ColetaId} UsuarioId:{UsuarioId}",
+            execucao.Id, usuarioId);
+
+        logger.LogInformation("Coleta manual iniciada para {Url}", fonte.Url);
+
         await execucaoRepository.AdicionarAsync(execucao, cancellationToken);
         var transacaoIniciada = false;
 
@@ -43,6 +54,10 @@ public sealed class ExecutarColetaManualUseCase(
                 fonte.Url,
                 fonte.SeletorConteudo,
                 cancellationToken);
+
+            logger.LogInformation(
+                "Coletor {Coletor} retornou {Quantidade} documento(s)",
+                collector.GetType().Name, coletados.Count);
 
             var documentos = coletados
                 .Select(documento => new Documento(
@@ -75,10 +90,16 @@ public sealed class ExecutarColetaManualUseCase(
             await unitOfWork.CommitTransactionAsync(cancellationToken);
             transacaoIniciada = false;
 
+            logger.LogInformation(
+                "Coleta concluída: {Inseridos} inserido(s), {Ignorados} já existente(s)",
+                quantidadeInserida, documentos.Count - quantidadeInserida);
+
             return ExecucaoColetaResponse.FromEntity(execucao);
         }
         catch (OperationCanceledException)
         {
+            logger.LogWarning("Coleta cancelada antes de terminar.");
+
             if (transacaoIniciada)
                 await RollbackSemMascararAsync();
 
@@ -86,6 +107,8 @@ public sealed class ExecutarColetaManualUseCase(
         }
         catch (Exception exception)
         {
+            logger.LogError(exception, "Coleta falhou para {Url}", fonte.Url);
+
             var execucaoPrecisaSerReadicionada = transacaoIniciada;
 
             if (transacaoIniciada)

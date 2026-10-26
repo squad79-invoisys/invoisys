@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using FluentAssertions;
 using InvoiSys.Collectors.RssAtom;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvoiSys.UnitTests.Collectors;
 
@@ -132,7 +133,9 @@ public sealed class RssAtomCollectorTests
             Timeout = TimeSpan.FromSeconds(30)
         };
 
-        return new RssAtomCollector(client);
+        return new RssAtomCollector(
+            client,
+            NullLogger<RssAtomCollector>.Instance);
     }
 
     private sealed class StubHttpMessageHandler(string content) : HttpMessageHandler
