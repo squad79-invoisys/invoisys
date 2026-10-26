@@ -10,6 +10,8 @@ using InvoiSys.Application.Fontes;
 using InvoiSys.Application.Fontes.CriarFonte;
 using InvoiSys.Application.Usuarios.CriarUsuario;
 using InvoiSys.Domain.Enums;
+using InvoiSys.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace InvoiSys.IntegrationTests.Support;
 
@@ -25,6 +27,7 @@ public sealed class ApiFixture : IAsyncLifetime
     private DistributedApplication? _app;
     private FakeFeedServer? _feed;
     private HttpClient? _http;
+    private string? _connectionString;
 
     public HttpClient Http =>
         _http ?? throw new InvalidOperationException("O ambiente não foi iniciado.");
@@ -69,6 +72,9 @@ public sealed class ApiFixture : IAsyncLifetime
         await _app.ResourceNotifications
             .WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(StartupTimeout, cancellationToken);
+
+        _connectionString = await _app.GetConnectionStringAsync(
+            "invoisys", cancellationToken);
 
         using (var descoberta = _app.CreateHttpClient("api"))
         {
@@ -118,6 +124,17 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public ApiTestClient CriarClienteAutenticado(string accessToken) =>
         new(Http, accessToken);
+
+    public ApplicationDbContext CreateDbContext()
+    {
+        var connectionString = _connectionString
+            ?? throw new InvalidOperationException("O PostgreSQL de teste ainda não foi inicializado.");
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        return new ApplicationDbContext(options);
+    }
 
     public ApiTestClient ClientePorPerfil(string perfil) => perfil switch
     {

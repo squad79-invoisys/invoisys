@@ -4,6 +4,7 @@ using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Fontes;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
+using InvoiSys.Application.Fontes.ObterResumo;
 using InvoiSys.Domain.Enums;
 using InvoiSys.IntegrationTests.Support;
 
@@ -21,6 +22,44 @@ public sealed class FontesEndpointsTests(ApiFixture api)
         int periodicidadeMinutos = 60,
         string? seletor = null) =>
         new(nome, url, tipo, periodicidadeMinutos, "Outro", seletor);
+
+    [Fact]
+    public async Task Resumo_DeveContarTodasAsFontes_IndependentementeDaListagem()
+    {
+        var antes = await ObterResumoAsync();
+        var token = ApiFixture.NovoToken();
+        var primeira = await api.CriarFonteComUrlAsync(
+            $"Fonte {token} A", api.Feed.RssUrl(token), TipoFonte.Rss, Ct);
+        await api.CriarFonteComUrlAsync(
+            $"Fonte {token} B", api.Feed.RssUrl(token), TipoFonte.Rss, Ct);
+
+        var ativas = await ObterResumoAsync();
+        ativas.TotalFontes.Should().Be(antes.TotalFontes + 2);
+        ativas.FontesAtivas.Should().Be(antes.FontesAtivas + 2);
+        ativas.FontesInativas.Should().Be(antes.FontesInativas);
+
+        await api.DesativarFonteAsync(primeira.Id, Ct);
+        var inativas = await ObterResumoAsync();
+        inativas.TotalFontes.Should().Be(ativas.TotalFontes);
+        inativas.FontesAtivas.Should().Be(ativas.FontesAtivas - 1);
+        inativas.FontesInativas.Should().Be(ativas.FontesInativas + 1);
+        inativas.TotalFontes.Should().Be(inativas.FontesAtivas + inativas.FontesInativas);
+
+        var pagina = await ListarAsync($"Busca={token}&Pagina=2&TamanhoPagina=1");
+        pagina.Total.Should().Be(2);
+        pagina.Itens.Should().ContainSingle();
+        var filtrada = await ListarAsync($"Busca={token}&Status=Inativa&TamanhoPagina=1");
+        filtrada.Total.Should().Be(1);
+        (await ObterResumoAsync()).Should().Be(inativas);
+
+        using var reativar = await api.Admin.PatchAsync(
+            $"/api/fontes/{primeira.Id}/ativar", null, Ct);
+        reativar.StatusCode.Should().Be(HttpStatusCode.OK);
+        var reativadas = await ObterResumoAsync();
+        reativadas.TotalFontes.Should().Be(inativas.TotalFontes);
+        reativadas.FontesAtivas.Should().Be(inativas.FontesAtivas + 1);
+        reativadas.FontesInativas.Should().Be(inativas.FontesInativas - 1);
+    }
 
     [Fact]
     public async Task Criar_DeveRetornar201_QuandoFeedRssValido()
@@ -424,6 +463,15 @@ public sealed class FontesEndpointsTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         return await response.LerDadosAsync<PagedResponse<FonteResponse>>(Ct);
+    }
+
+    private async Task<ResumoFontesResponse> ObterResumoAsync()
+    {
+        using var response = await api.Consulta.GetAsync("/api/fontes/resumo", Ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var corpo = await response.LerApiAsync<ResumoFontesResponse>(Ct);
+        corpo.Sucesso.Should().BeTrue();
+        return corpo.Dados!;
     }
 
     private async Task<FonteResponse> ConsultarAsync(Guid id)

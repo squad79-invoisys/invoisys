@@ -23,6 +23,9 @@ public interface IDashboardRepository
         StatusExecucaoColeta? status,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyDictionary<StatusExecucaoColeta, int>> ContarExecucoesPorStatusAsync(
+        CancellationToken cancellationToken);
+
     Task<int> ContarDocumentosAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ExecucaoRecente>> ListarExecucoesRecentesAsync(

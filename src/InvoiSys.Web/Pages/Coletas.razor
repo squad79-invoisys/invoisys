@@ -369,22 +369,16 @@
             .ToList();
     }
 
-    // Não existe endpoint de resumo: cada contagem usa o total devolvido pela listagem (página de 1 item).
     private async Task CarregarResumoAsync()
     {
-        var contagens = await Task.WhenAll(
-            ContarAsync(null),
-            ContarAsync(StatusExecucaoColeta.Concluida),
-            ContarAsync(StatusExecucaoColeta.Falhou),
-            ContarAsync(StatusExecucaoColeta.EmAndamento));
+        var resposta = await ColetasClient.ObterResumoAsync();
+        var dados = resposta.Dados;
 
-        _resumo = CriarResumo(contagens[0], contagens[1], contagens[2], contagens[3]);
-    }
-
-    private async Task<int> ContarAsync(StatusExecucaoColeta? status)
-    {
-        var resposta = await ColetasClient.ListarAsync(1, 1, status: status);
-        return resposta.Dados?.Total ?? 0;
+        _resumo = CriarResumo(
+            dados?.TotalExecucoes ?? 0,
+            dados?.ExecucoesConcluidas ?? 0,
+            dados?.ExecucoesComFalha ?? 0,
+            dados?.ExecucoesEmAndamento ?? 0);
     }
 
     // ===== Ações =====
