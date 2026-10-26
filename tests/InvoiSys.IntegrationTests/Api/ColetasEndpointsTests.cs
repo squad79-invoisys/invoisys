@@ -1,8 +1,10 @@
 using System.Net;
 using FluentAssertions;
 using InvoiSys.Application.Coletas;
+using InvoiSys.Application.Coletas.ObterResumo;
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Domain.Enums;
+using InvoiSys.Domain.Entities;
 using InvoiSys.IntegrationTests.Support;
 
 namespace InvoiSys.IntegrationTests.Api;
@@ -11,6 +13,48 @@ namespace InvoiSys.IntegrationTests.Api;
 public sealed class ColetasEndpointsTests(ApiFixture api)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Resumo_DeveContarExecucoesPorStatus_IndependentementeDaListagem()
+    {
+        var antes = await ObterResumoAsync();
+        var concluidaFonte = await api.CriarFonteAsync(
+            ApiFixture.NovoToken(), TipoFonte.Rss, Ct);
+        await api.ExecutarColetaAsync(concluidaFonte.Id, Ct);
+        await api.ExecutarColetaAsync(concluidaFonte.Id, Ct);
+
+        var token = ApiFixture.NovoToken();
+        var falhaFonte = await api.CriarFonteComUrlAsync(
+            $"Fonte {token}", api.Feed.InstavelUrl(token), TipoFonte.Rss, Ct);
+        using (var falha = await api.Admin.PostAsync(
+                   $"/api/coletas/fontes/{falhaFonte.Id}/executar", null, Ct))
+        {
+            falha.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        var emAndamentoFonte = await api.CriarFonteAsync(
+            ApiFixture.NovoToken(), TipoFonte.Rss, Ct);
+        await using (var dbContext = api.CreateDbContext())
+        {
+            dbContext.ExecucoesColeta.Add(
+                ExecucaoColeta.IniciarManual(emAndamentoFonte.Id, api.AdminId));
+            await dbContext.SaveChangesAsync(Ct);
+        }
+
+        var resumo = await ObterResumoAsync();
+        resumo.TotalExecucoes.Should().Be(antes.TotalExecucoes + 4);
+        resumo.ExecucoesConcluidas.Should().Be(antes.ExecucoesConcluidas + 2);
+        resumo.ExecucoesComFalha.Should().Be(antes.ExecucoesComFalha + 1);
+        resumo.ExecucoesEmAndamento.Should().Be(antes.ExecucoesEmAndamento + 1);
+        resumo.TotalExecucoes.Should().Be(
+            resumo.ExecucoesConcluidas + resumo.ExecucoesComFalha + resumo.ExecucoesEmAndamento);
+
+        var filtrada = await ListarAsync(
+            $"FonteId={concluidaFonte.Id}&Status=Concluida&TamanhoPagina=1");
+        filtrada.Total.Should().Be(2);
+        filtrada.Itens.Should().ContainSingle();
+        (await ObterResumoAsync()).Should().Be(resumo);
+    }
 
     [Fact]
     public async Task Executar_DeveConcluirColetaManual_QuandoFonteRssAtiva()
@@ -245,5 +289,14 @@ public sealed class ColetasEndpointsTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         return await response.LerDadosAsync<PagedResponse<ExecucaoColetaResponse>>(Ct);
+    }
+
+    private async Task<ResumoColetasResponse> ObterResumoAsync()
+    {
+        using var response = await api.Consulta.GetAsync("/api/coletas/resumo", Ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var corpo = await response.LerApiAsync<ResumoColetasResponse>(Ct);
+        corpo.Sucesso.Should().BeTrue();
+        return corpo.Dados!;
     }
 }

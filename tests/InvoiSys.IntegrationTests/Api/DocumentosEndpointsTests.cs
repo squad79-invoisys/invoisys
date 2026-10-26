@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Documentos;
+using InvoiSys.Application.Documentos.ObterResumo;
 using InvoiSys.Domain.Enums;
 using InvoiSys.IntegrationTests.Support;
 
@@ -11,6 +12,22 @@ namespace InvoiSys.IntegrationTests.Api;
 public sealed class DocumentosEndpointsTests(ApiFixture api)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Resumo_DeveContarDocumentos_IndependentementeDaListagem()
+    {
+        var antes = await ObterResumoAsync();
+        var (token, _) = await ColetarFeedAsync();
+        var depois = await ObterResumoAsync();
+        depois.TotalDocumentos.Should().Be(antes.TotalDocumentos + 2);
+
+        var pagina = await ListarAsync($"Busca={token}&Pagina=2&TamanhoPagina=1");
+        pagina.Total.Should().Be(2);
+        pagina.Itens.Should().ContainSingle();
+        var semResultado = await ListarAsync($"Busca={ApiFixture.NovoToken()}");
+        semResultado.Total.Should().Be(0);
+        (await ObterResumoAsync()).Should().Be(depois);
+    }
 
     [Fact]
     public async Task Listar_DeveRetornarDocumentosColetados_QuandoBuscarPeloTitulo()
@@ -135,5 +152,14 @@ public sealed class DocumentosEndpointsTests(ApiFixture api)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         return await response.LerDadosAsync<PagedResponse<DocumentoResponse>>(Ct);
+    }
+
+    private async Task<ResumoDocumentosResponse> ObterResumoAsync()
+    {
+        using var response = await api.Consulta.GetAsync("/api/documentos/resumo", Ct);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var corpo = await response.LerApiAsync<ResumoDocumentosResponse>(Ct);
+        corpo.Sucesso.Should().BeTrue();
+        return corpo.Dados!;
     }
 }

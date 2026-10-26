@@ -10,6 +10,11 @@
     Documentos encontrados pelas rotinas de coleta.
 </MudText>
 
+<MudPaper Class="pa-4 mt-4" Outlined="true">
+    <MudText Typo="Typo.body2">Total de documentos</MudText>
+    <MudText Typo="Typo.h4">@_totalDocumentos</MudText>
+</MudPaper>
+
 <MudTextField T="string" @bind-Value="_contextoFiltro" @bind-Value:after="CarregarDocumentosAsync"
               Label="Contexto" Variant="Variant.Outlined" Immediate="true" DebounceInterval="350"
               Clearable="true" Class="mt-4" aria-label="Filtrar documentos por contexto" />
@@ -34,8 +39,14 @@
 @code {
     private IReadOnlyList<DocumentoResponse> _documentos = [];
     private string? _contextoFiltro;
+    private int _totalDocumentos;
 
-    protected override async Task OnInitializedAsync() => await CarregarDocumentosAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var resumo = await DocumentosClient.ObterResumoAsync();
+        _totalDocumentos = resumo.Dados?.TotalDocumentos ?? 0;
+        await CarregarDocumentosAsync();
+    }
 
     private async Task CarregarDocumentosAsync()
     {
