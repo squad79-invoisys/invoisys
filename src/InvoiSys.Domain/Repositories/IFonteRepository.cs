@@ -5,6 +5,9 @@ namespace InvoiSys.Domain.Repositories;
 
 public interface IFonteRepository
 {
+    Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(
+        DateTimeOffset agoraUtc,
+        CancellationToken cancellationToken);
     Task AdicionarAsync(Fonte fonte, CancellationToken cancellationToken);
     Task<Fonte?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
     Task<(IReadOnlyList<Fonte> Itens, int Total)> ListarAsync(

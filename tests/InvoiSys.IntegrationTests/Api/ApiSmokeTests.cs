@@ -22,7 +22,8 @@ public sealed class ApiSmokeTests
                 $"Parameters:jwt-key={jwtKey}",
                 "Parameters:admin-email=admin@invoisys.test",
                 "Parameters:admin-password=InvoiSys_Admin_123!",
-                "UsePersistentDatabase=false"
+                "UsePersistentDatabase=false",
+                "ColetaAutomatica:Enabled=false"
             ],
             cancellationToken);
 
