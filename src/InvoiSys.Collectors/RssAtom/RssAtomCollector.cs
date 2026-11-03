@@ -5,11 +5,13 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace InvoiSys.Collectors.RssAtom;
 
 public sealed partial class RssAtomCollector(
-    HttpClient httpClient) : IContentCollector
+    HttpClient httpClient,
+    ILogger<RssAtomCollector> logger) : IContentCollector
 {
     public bool Suporta(TipoFonte tipo) =>
         tipo is TipoFonte.Rss or TipoFonte.Atom;
@@ -31,9 +33,16 @@ public sealed partial class RssAtomCollector(
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        return FeedDocumentParser.EhAtom(xml)
+        var ehAtom = FeedDocumentParser.EhAtom(xml);
+        var documentos = ehAtom
             ? LerAtom(xml, url, cancellationToken)
             : LerRss(xml, url, cancellationToken);
+
+        logger.LogInformation(
+            "Feed {Formato} lido: {Quantidade} item(ns)",
+            ehAtom ? "Atom" : "RSS", documentos.Count);
+
+        return documentos;
     }
 
     private static IReadOnlyList<CollectedDocument> LerRss(

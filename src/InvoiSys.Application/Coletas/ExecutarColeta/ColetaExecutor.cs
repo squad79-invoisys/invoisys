@@ -60,6 +60,9 @@ public sealed class ColetaExecutor(
             fonteId, cancellationToken);
         if (lease is null)
         {
+            logger.LogDebug(
+                "Coleta não iniciada: outra execução detém a Fonte {FonteId}.", fonteId);
+
             if (automatica)
                 return null;
             throw new BusinessException("Já existe uma coleta em andamento para esta fonte.");
@@ -72,6 +75,10 @@ public sealed class ColetaExecutor(
                 return null;
             throw new NotFoundException("Fonte não encontrada.");
         }
+
+        using var fonteScope = logger.BeginScope(
+            "FonteId:{FonteId} FonteNome:{FonteNome} FonteTipo:{FonteTipo}",
+            fonte.Id, fonte.Nome, fonte.Tipo);
 
         if (!await lease.TentarReivindicarAsync(cancellationToken))
         {
@@ -103,6 +110,14 @@ public sealed class ColetaExecutor(
             : ExecucaoColeta.IniciarManual(fonteId, usuarioId!.Value);
         await execucaoRepository.AdicionarAsync(execucao, cancellationToken);
 
+        using var coletaScope = logger.BeginScope(
+            "ColetaId:{ColetaId} UsuarioId:{UsuarioId} Automatica:{Automatica}",
+            execucao.Id, usuarioId, automatica);
+
+        logger.LogInformation(
+            "Coleta {Modo} iniciada para {Url}",
+            automatica ? "automática" : "manual", fonte.Url);
+
         var transacaoIniciada = false;
         try
         {
@@ -119,6 +134,10 @@ public sealed class ColetaExecutor(
             await lease.RenovarAsync(cancellationToken);
             var coletados = await ColetarMonitoradoAsync(
                 lease, collector, fonte.Url, fonte.SeletorConteudo, cancellationToken);
+
+            logger.LogInformation(
+                "Coletor {Coletor} retornou {Quantidade} documento(s)",
+                collector.GetType().Name, coletados.Count);
 
             var documentos = coletados
                 .Select(documento =>
@@ -147,10 +166,16 @@ public sealed class ColetaExecutor(
             await unitOfWork.CommitTransactionAsync(cancellationToken);
             transacaoIniciada = false;
 
+            logger.LogInformation(
+                "Coleta concluída: {Inseridos} inserido(s), {Ignorados} já existente(s)",
+                quantidadeInserida, documentos.Count - quantidadeInserida);
+
             return ExecucaoColetaResponse.FromEntity(execucao);
         }
         catch (OperationCanceledException)
         {
+            logger.LogWarning("Coleta cancelada antes de terminar.");
+
             if (transacaoIniciada)
                 await RollbackSemMascararAsync(execucao.Id);
 
@@ -167,6 +192,8 @@ public sealed class ColetaExecutor(
         }
         catch (Exception exception)
         {
+            logger.LogError(exception, "Coleta falhou para {Url}", fonte.Url);
+
             var readicionarManual = transacaoIniciada;
             if (transacaoIniciada)
                 await RollbackSemMascararAsync(execucao.Id);

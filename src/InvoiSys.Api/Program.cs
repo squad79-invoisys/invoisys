@@ -1,4 +1,5 @@
 using InvoiSys.Api.Configurations;
+using InvoiSys.Api.Middleware;
 using InvoiSys.Api.Workers;
 using InvoiSys.Infrastructure.Data;
 using InvoiSys.Infrastructure.Identity;
@@ -29,6 +30,8 @@ builder.Services.Configure<HostOptions>(options =>
     options.ShutdownTimeout = TimeSpan.FromSeconds(45));
 
 var app = builder.Build();
+
+app.UseMiddleware<TraceIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
