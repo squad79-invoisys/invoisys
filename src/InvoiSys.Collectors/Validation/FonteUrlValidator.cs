@@ -1,6 +1,7 @@
 using System.Xml;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Fontes;
+using InvoiSys.Collectors.Pdf;
 using InvoiSys.Collectors.RssAtom;
 using InvoiSys.Domain.Enums;
 
@@ -52,31 +53,80 @@ public sealed class FonteUrlValidator(
                     "A URL retornou uma resposta HTTP sem sucesso");
             }
 
-            string content;
+            if (tipo == TipoFonte.Pdf)
+            {
+                var bytes = await LerConteudoAsync(
+                    token => LerCabecalhoAsync(response.Content, token),
+                    timeoutSource.Token,
+                    cancellationToken);
 
-            try
-            {
-                content = await response.Content.ReadAsStringAsync(
-                    timeoutSource.Token);
+                ValidarPdf(bytes);
+                return;
             }
-            catch (OperationCanceledException)
-                when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new BusinessException(
-                    "A URL não respondeu no tempo esperado");
-            }
-            catch (HttpRequestException)
-            {
-                throw new BusinessException(
-                    "Não foi possível ler o conteúdo retornado pela URL");
-            }
-            catch (IOException)
-            {
-                throw new BusinessException(
-                    "Não foi possível ler o conteúdo retornado pela URL");
-            }
+
+            var content = await LerConteudoAsync(
+                response.Content.ReadAsStringAsync,
+                timeoutSource.Token,
+                cancellationToken);
 
             ValidarConteudo(content, tipo);
+        }
+    }
+
+    private static async Task<T> LerConteudoAsync<T>(
+        Func<CancellationToken, Task<T>> leitura,
+        CancellationToken timeoutToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await leitura(timeoutToken);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new BusinessException(
+                "A URL não respondeu no tempo esperado");
+        }
+        catch (HttpRequestException)
+        {
+            throw new BusinessException(
+                "Não foi possível ler o conteúdo retornado pela URL");
+        }
+        catch (IOException)
+        {
+            throw new BusinessException(
+                "Não foi possível ler o conteúdo retornado pela URL");
+        }
+    }
+
+    // Lê apenas o início do arquivo, onde fica a assinatura, para não baixar
+    // PDFs grandes inteiros durante a validação.
+    private static async Task<byte[]> LerCabecalhoAsync(
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
+
+        var buffer = new byte[PdfAssinatura.LimiteCabecalho];
+        var lidos = await stream.ReadAtLeastAsync(
+            buffer,
+            buffer.Length,
+            throwOnEndOfStream: false,
+            cancellationToken);
+
+        return buffer[..lidos];
+    }
+
+    private static void ValidarPdf(byte[] content)
+    {
+        if (content.Length == 0)
+            throw new BusinessException("A URL retornou conteúdo vazio");
+
+        if (!PdfAssinatura.Possui(content))
+        {
+            throw new BusinessException(
+                "O conteúdo da URL não é um arquivo PDF válido");
         }
     }
 

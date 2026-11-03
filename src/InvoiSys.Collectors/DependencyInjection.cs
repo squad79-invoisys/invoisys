@@ -1,5 +1,6 @@
 using InvoiSys.Application.Common.Collectors;
 using InvoiSys.Application.Common.Fontes;
+using InvoiSys.Collectors.Pdf;
 using InvoiSys.Collectors.RssAtom;
 using InvoiSys.Collectors.Validation;
 using InvoiSys.Collectors.WebHtml;
@@ -23,6 +24,12 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("InvoiSys/1.0");
         });
 
+        services.AddHttpClient<PdfCollector>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("InvoiSys/1.0");
+        });
+
         services.AddHttpClient<IFonteUrlValidator, FonteUrlValidator>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
@@ -33,6 +40,8 @@ public static class DependencyInjection
             provider.GetRequiredService<RssAtomCollector>());
         services.AddScoped<IContentCollector>(provider =>
             provider.GetRequiredService<WebHtmlCollector>());
+        services.AddScoped<IContentCollector>(provider =>
+            provider.GetRequiredService<PdfCollector>());
         services.AddScoped<ICollectorResolver, CollectorResolver>();
 
         return services;

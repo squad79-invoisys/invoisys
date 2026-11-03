@@ -205,7 +205,7 @@
     private void SelecionarFonte(FonteResponse fonte) => _fonteSelecionada = fonte;
     private static string FormatarTipo(TipoFonte tipo) => tipo switch
     {
-        TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", _ => tipo.ToString()
+        TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", TipoFonte.Pdf => "PDF", _ => tipo.ToString()
     };
     private static string FormatarStatus(StatusFonte status) => status == StatusFonte.Ativa ? "Ativa" : "Inativa";
     private static string ObterClasseStatus(StatusFonte status) => status == StatusFonte.Ativa ? "status-active" : "status-inactive";

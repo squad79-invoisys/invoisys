@@ -37,7 +37,7 @@ public sealed class FontesControllerImportarTests
         var esperado = new ImportarFontesResponse(
             3,
             2,
-            [new LinhaRejeitada(3, "Tipo inválido: 'Xml'. Use Rss, Atom ou WebHtml.")]);
+            [new LinhaRejeitada(3, "Tipo inválido: 'Xml'. Use Rss, Atom, WebHtml ou Pdf.")]);
         var useCase = new ImportarFontesUseCaseStub(esperado);
         var controller = CriarController(useCase);
         var bytes = Encoding.UTF8.GetBytes("nome,url,tipo,periodicidade\n");

@@ -55,4 +55,42 @@ public sealed class AtualizarFonteValidatorTests
         (await _validator.ValidateAsync(invalido, TestContext.Current.CancellationToken)).IsValid.Should().BeFalse();
         (await _validator.ValidateAsync(valido with { Contexto = "   " }, TestContext.Current.CancellationToken)).IsValid.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Validate_DeveFalhar_QuandoSeletorEmFontePdf()
+    {
+        var request = new AtualizarFonteRequest(
+            "Manual NF-e",
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            30,
+            "Manuais",
+            "#conteudo");
+
+        var result = await _validator.ValidateAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().ContainSingle(error =>
+            error.PropertyName == nameof(request.SeletorConteudo) &&
+            error.ErrorMessage == "O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
+    }
+
+    [Fact]
+    public async Task Validate_DeveSerValido_QuandoFontePdfSemSeletor()
+    {
+        var request = new AtualizarFonteRequest(
+            "Manual NF-e",
+            "https://exemplo.com/manual.pdf",
+            TipoFonte.Pdf,
+            30,
+            "Manuais");
+
+        var result = await _validator.ValidateAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        result.IsValid.Should().BeTrue();
+    }
 }

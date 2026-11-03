@@ -124,7 +124,7 @@
 
     private static string FormatarTipo(TipoFonte tipo) => tipo switch
     {
-        TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", _ => tipo.ToString()
+        TipoFonte.Rss => "RSS", TipoFonte.Atom => "Atom", TipoFonte.WebHtml => "Web HTML", TipoFonte.Pdf => "PDF", _ => tipo.ToString()
     };
 
     private void Cancelar() => MudDialog.Cancel();
