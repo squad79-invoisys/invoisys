@@ -36,6 +36,14 @@ public sealed class DashboardRepository(
             .AsNoTracking()
             .CountAsync(cancellationToken);
 
+    public async Task<IReadOnlyDictionary<StatusExecucaoColeta, int>> ContarExecucoesPorStatusAsync(
+        CancellationToken cancellationToken) =>
+        await dbContext.ExecucoesColeta
+            .AsNoTracking()
+            .GroupBy(execucao => execucao.Status)
+            .Select(grupo => new { Status = grupo.Key, Total = grupo.Count() })
+            .ToDictionaryAsync(grupo => grupo.Status, grupo => grupo.Total, cancellationToken);
+
     public async Task<IReadOnlyList<ExecucaoRecente>> ListarExecucoesRecentesAsync(
         int quantidade,
         CancellationToken cancellationToken)

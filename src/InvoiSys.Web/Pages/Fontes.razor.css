@@ -6,7 +6,7 @@
 .fontes-filter-bar ::deep .mud-input.mud-input-outlined { background:#fff; border-radius:8px; font-size:var(--fs-body); }
 .fontes-filter-bar ::deep .mud-input-outlined-border { border-color:#dfe5eb; }
 .fontes-filter-bar ::deep .nova-fonte-button { border-radius:8px; font-size:var(--fs-body); height:40px; }
-.fontes-summary { display:grid; gap:14px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.fontes-summary { display:grid; gap:14px; grid-template-columns:repeat(3,minmax(0,1fr)); }
 .fontes-data-grid { display:grid; gap:16px; grid-template-columns:minmax(0,3fr) minmax(255px,1fr); }
 .fontes-table-card,.fontes-tip { border-color:#e3e8ed; border-radius:12px; overflow:hidden; }
 .fontes-table-card { background:#fff; border:1px solid #e3e8ed; min-height:500px; }

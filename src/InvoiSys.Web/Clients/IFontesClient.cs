@@ -1,6 +1,7 @@
 using InvoiSys.Application.Fontes;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
+using InvoiSys.Application.Fontes.ObterResumo;
 using Refit;
 using Responses = InvoiSys.Application.Common.Responses;
 
@@ -8,6 +9,10 @@ namespace InvoiSys.Web.Clients;
 
 public interface IFontesClient
 {
+    [Get("/api/fontes/resumo")]
+    Task<Responses.ApiResponse<ResumoFontesResponse>> ObterResumoAsync(
+        CancellationToken cancellationToken = default);
+
     [Get("/api/fontes")]
     Task<Responses.ApiResponse<Responses.PagedResponse<FonteResponse>>> ListarAsync(
         [Query] int pagina = 1,

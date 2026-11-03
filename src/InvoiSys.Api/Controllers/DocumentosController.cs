@@ -2,6 +2,7 @@ using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Documentos;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
+using InvoiSys.Application.Documentos.ObterResumo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -13,8 +14,27 @@ namespace InvoiSys.Api.Controllers;
 [Authorize]
 public sealed class DocumentosController(
     IConsultarDocumentoUseCase consultarDocumentoUseCase,
-    IListarDocumentosUseCase listarDocumentosUseCase) : ControllerBase
+    IListarDocumentosUseCase listarDocumentosUseCase,
+    IObterResumoDocumentosUseCase obterResumoDocumentosUseCase) : ControllerBase
 {
+    [HttpGet("resumo")]
+    [SwaggerOperation(
+        Summary = "Obtém o resumo dos documentos",
+        Description = "Retorna o total global de documentos cadastrados.",
+        OperationId = "ObterResumoDocumentos",
+        Tags = ["Documentos"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Resumo obtido com sucesso.",
+        typeof(ApiResponse<ResumoDocumentosResponse>))]
+    public async Task<IActionResult> ObterResumoAsync(CancellationToken cancellationToken)
+    {
+        var response = await obterResumoDocumentosUseCase.Execute(cancellationToken);
+
+        return Ok(ApiResponse<ResumoDocumentosResponse>.Ok(
+            "Resumo obtido com sucesso.", response));
+    }
+
     [HttpGet("{id:guid}")]
     [SwaggerOperation(
         Summary = "Consulta um documento",

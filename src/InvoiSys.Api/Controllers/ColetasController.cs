@@ -2,6 +2,7 @@ using InvoiSys.Application.Coletas;
 using InvoiSys.Application.Coletas.ConsultarColeta;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
 using InvoiSys.Application.Coletas.ListarColetas;
+using InvoiSys.Application.Coletas.ObterResumo;
 using InvoiSys.Application.Common.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +16,8 @@ namespace InvoiSys.Api.Controllers;
 public sealed class ColetasController(
     IExecutarColetaManualUseCase executarColetaManualUseCase,
     IConsultarColetaUseCase consultarColetaUseCase,
-    IListarColetasUseCase listarColetasUseCase) : ControllerBase
+    IListarColetasUseCase listarColetasUseCase,
+    IObterResumoColetasUseCase obterResumoColetasUseCase) : ControllerBase
 {
     [HttpPost("fontes/{fonteId:guid}/executar")]
     [Authorize(Roles = "Administrador,Operador")]
@@ -66,6 +68,24 @@ public sealed class ColetasController(
         return Ok(ApiResponse<ExecucaoColetaResponse>.Ok(
             "Coleta consultada com sucesso.",
             response));
+    }
+
+    [HttpGet("resumo")]
+    [SwaggerOperation(
+        Summary = "Obtém o resumo das coletas",
+        Description = "Retorna os totais globais de execuções por status.",
+        OperationId = "ObterResumoColetas",
+        Tags = ["Coletas"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Resumo obtido com sucesso.",
+        typeof(ApiResponse<ResumoColetasResponse>))]
+    public async Task<IActionResult> ObterResumoAsync(CancellationToken cancellationToken)
+    {
+        var response = await obterResumoColetasUseCase.Execute(cancellationToken);
+
+        return Ok(ApiResponse<ResumoColetasResponse>.Ok(
+            "Resumo obtido com sucesso.", response));
     }
 
     [HttpGet]

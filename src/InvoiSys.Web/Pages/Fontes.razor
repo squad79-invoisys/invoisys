@@ -50,10 +50,8 @@
                      Tone="success" Description="100% do total cadastrado" />
         <SummaryCard Title="Fontes ativas" Value="@_totalAtivas" Icon="@Icons.Material.Outlined.Check"
                      Tone="success" Description="@($"{FormatarPercentual(_totalAtivas)} do total cadastrado")" />
-        <SummaryCard Title="Fontes pausadas" Value="@_totalInativas" Icon="@Icons.Material.Outlined.Pause"
+        <SummaryCard Title="Fontes inativas" Value="@_totalInativas" Icon="@Icons.Material.Outlined.Block"
                      Tone="warning" Description="@($"{FormatarPercentual(_totalInativas)} do total cadastrado")" />
-        <SummaryCard Title="Com erro" Value="0" Icon="@Icons.Material.Outlined.PriorityHigh"
-                     Tone="error" Description="Sem dados de execução" />
     </div>
 
     <div class="fontes-data-grid">
@@ -182,6 +180,8 @@
     private MudTable<FonteResponse>? _tabela;
     private bool _carregando = true;
     private int _totalFontes;
+    private int _totalAtivas;
+    private int _totalInativas;
     private FonteResponse? _fonteSelecionada;
     private Guid? _fonteEmAlteracaoId;
     private string? _contextoFiltro;
@@ -198,9 +198,6 @@
 
     private ResumoExecucoes? _resumo;
     private bool _executandoColeta;
-
-    private int _totalAtivas => _fontes.Count(fonte => fonte.Status == StatusFonte.Ativa);
-    private int _totalInativas => _fontes.Count(fonte => fonte.Status == StatusFonte.Inativa);
 
     protected override async Task OnInitializedAsync() => await CarregarFontesAsync();
 
@@ -224,10 +221,11 @@
 
             var fonteSelecionadaId = _fonteSelecionada?.Id;
             _fontes = response.Dados?.Itens ?? [];
-            _totalFontes = response.Dados?.Total ?? _fontes.Count;
             _fonteSelecionada = fonteSelecionadaId is null
                 ? _fontes.FirstOrDefault()
                 : _fontes.FirstOrDefault(fonte => fonte.Id == fonteSelecionadaId) ?? _fontes.FirstOrDefault();
+
+            await CarregarContadoresAsync();
         }
         catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
         catch (Refit.ApiException exception)
@@ -238,6 +236,20 @@
         finally { _carregando = false; }
 
         await CarregarResumoAsync();
+    }
+
+    private async Task CarregarContadoresAsync()
+    {
+        var response = await FontesClient.ObterResumoAsync(_cancellationTokenSource.Token);
+        if (!response.Sucesso || response.Dados is not { } dados)
+        {
+            Snackbar.Add(response.Mensagem, Severity.Error);
+            return;
+        }
+
+        _totalFontes = dados.TotalFontes;
+        _totalAtivas = dados.FontesAtivas;
+        _totalInativas = dados.FontesInativas;
     }
 
     private async Task AbrirCadastroAsync()
