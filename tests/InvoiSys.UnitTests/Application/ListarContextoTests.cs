@@ -62,7 +62,8 @@ public sealed class ListarContextoTests
         public Task AdicionarVariosAsync(IEnumerable<Documento> documentos, CancellationToken token) => Task.CompletedTask;
         public Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken token) => Task.FromResult<Documento?>(null);
         public Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(int pagina, int tamanhoPagina,
-            string? contexto, string? busca, CancellationToken token)
+            string? contexto, string? busca, string? tipo, DateTimeOffset? dataInicio, DateTimeOffset? dataFim,
+            CancellationToken token)
         {
             Contexto = contexto;
             Pagina = pagina;

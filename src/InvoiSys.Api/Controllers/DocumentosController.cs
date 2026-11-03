@@ -41,7 +41,7 @@ public sealed class DocumentosController(
     [HttpGet]
     [SwaggerOperation(
         Summary = "Lista documentos",
-        Description = "Retorna os documentos coletados de forma paginada.",
+        Description = "Retorna os documentos coletados de forma paginada, com filtros opcionais por busca (título ou origem), tipo, contexto e período da data de coleta.",
         OperationId = "ListarDocumentos",
         Tags = ["Documentos"])]
     [SwaggerResponse(

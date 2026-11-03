@@ -15,5 +15,8 @@ public interface IDocumentoRepository
         int tamanhoPagina,
         string? contexto,
         string? busca,
+        string? tipo,
+        DateTimeOffset? dataInicio,
+        DateTimeOffset? dataFim,
         CancellationToken cancellationToken);
 }
