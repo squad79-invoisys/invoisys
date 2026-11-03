@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text;
+using System.Reflection;
+using AngleSharp.Html.Parser;
 using FluentAssertions;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Collectors.WebHtml;
@@ -9,6 +11,28 @@ namespace InvoiSys.UnitTests.Collectors;
 
 public sealed class WebHtmlCollectorTests
 {
+    [Fact]
+    public async Task RemocaoHtmlGrande_DeveInterromperAoCancelar()
+    {
+        var html = "<html><body>" + string.Concat(Enumerable.Repeat("<script>x</script>", 20000)) + "</body></html>";
+        using var document = await new HtmlParser().ParseDocumentAsync(html);
+        var metodo = typeof(WebHtmlCollector).GetMethod(
+            "DescartarElementosSemConteudo", BindingFlags.NonPublic | BindingFlags.Static)!;
+        using var cancellation = new CancellationTokenSource();
+        using var iniciou = new ManualResetEventSlim();
+        var extracao = Task.Run(() =>
+        {
+            iniciou.Set();
+            try { metodo.Invoke(null, [document, cancellation.Token]); }
+            catch (TargetInvocationException exception) when (exception.InnerException is OperationCanceledException)
+            { throw exception.InnerException; }
+        }, TestContext.Current.CancellationToken);
+        iniciou.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).Should().BeTrue();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(1));
+        var act = () => extracao;
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     private const string Url = "https://dfe-portal.svrs.rs.gov.br/";
 
     [Theory]

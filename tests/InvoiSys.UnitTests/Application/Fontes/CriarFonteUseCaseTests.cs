@@ -101,6 +101,8 @@ public sealed class CriarFonteUseCaseTests
 
     private sealed class FonteRepositoryStub : IFonteRepository
     {
+        public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
         public Fonte? Adicionada { get; private set; }
 
         public Task AdicionarAsync(Fonte fonte, CancellationToken cancellationToken)

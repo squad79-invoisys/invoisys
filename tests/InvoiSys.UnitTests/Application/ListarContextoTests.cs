@@ -41,6 +41,8 @@ public sealed class ListarContextoTests
 
     private sealed class FontesStub : IFonteRepository
     {
+        public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
         public string? Contexto { get; private set; }
         public int Pagina { get; private set; }
         public Task AdicionarAsync(Fonte fonte, CancellationToken token) => Task.CompletedTask;

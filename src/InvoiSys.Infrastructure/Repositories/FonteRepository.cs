@@ -9,6 +9,35 @@ namespace InvoiSys.Infrastructure.Repositories;
 public sealed class FonteRepository(
     ApplicationDbContext dbContext) : IFonteRepository
 {
+    public async Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(
+        DateTimeOffset agoraUtc,
+        CancellationToken cancellationToken)
+    {
+        var candidatas = await dbContext.Fontes
+            .AsNoTracking()
+            .Where(fonte => fonte.Status == StatusFonte.Ativa)
+            .Select(fonte => new
+            {
+                fonte.Id,
+                fonte.CriadoEm,
+                fonte.PeriodicidadeMinutos,
+                UltimaReferencia = dbContext.ExecucoesColeta
+                    .Where(execucao => execucao.FonteId == fonte.Id)
+                    .OrderByDescending(execucao => execucao.Inicio)
+                    .ThenByDescending(execucao => execucao.Id)
+                    .Select(execucao => (DateTimeOffset?)(execucao.Fim ?? execucao.Inicio))
+                    .FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+        return candidatas
+            .Where(fonte => agoraUtc >=
+                (fonte.UltimaReferencia ?? fonte.CriadoEm)
+                .AddMinutes(fonte.PeriodicidadeMinutos))
+            .Select(fonte => fonte.Id)
+            .ToList();
+    }
+
     public Task AdicionarAsync(
         Fonte fonte,
         CancellationToken cancellationToken) =>

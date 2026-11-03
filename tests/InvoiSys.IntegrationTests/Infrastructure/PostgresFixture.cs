@@ -24,7 +24,8 @@ public sealed class PostgresFixture : IAsyncLifetime
                 $"Parameters:jwt-key={new string('x', 96)}",
                 "Parameters:admin-email=admin@invoisys.test",
                 "Parameters:admin-password=InvoiSys_Admin_123!",
-                "UsePersistentDatabase=false"
+                "UsePersistentDatabase=false",
+                "ColetaAutomatica:Enabled=false"
             ],
             cancellationToken);
 
@@ -70,7 +71,7 @@ public sealed class PostgresFixture : IAsyncLifetime
                 var migrations = await dbContext.Database
                     .GetAppliedMigrationsAsync(cancellationToken);
 
-                if (migrations.Contains("20261013221535_AdicionaIndiceUnicoDocumentoUrlHash"))
+                if (migrations.Contains("20261019195813_AdicionaFonteColetaLease"))
                     return;
             }
             catch (Npgsql.NpgsqlException)

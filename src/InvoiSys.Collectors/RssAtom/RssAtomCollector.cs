@@ -31,8 +31,12 @@ public sealed partial class RssAtomCollector(
             LoadOptions.None,
             cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var ehAtom = FeedDocumentParser.EhAtom(xml);
-        var documentos = ehAtom ? LerAtom(xml, url) : LerRss(xml, url);
+        var documentos = ehAtom
+            ? LerAtom(xml, url, cancellationToken)
+            : LerRss(xml, url, cancellationToken);
 
         logger.LogInformation(
             "Feed {Formato} lido: {Quantidade} item(ns)",
@@ -43,16 +47,22 @@ public sealed partial class RssAtomCollector(
 
     private static IReadOnlyList<CollectedDocument> LerRss(
         XDocument document,
-        string origem)
+        string origem,
+        CancellationToken cancellationToken)
     {
         return document
             .Descendants()
-            .Where(element => element.Name.LocalName == "item")
+            .Where(element =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return element.Name.LocalName == "item";
+            })
             .Select(item =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var titulo = Valor(item, "title") ?? "Sem título";
                 var link = Valor(item, "link") ?? origem;
-                var descricao = RemoverHtml(Valor(item, "description"));
+                var descricao = RemoverHtml(Valor(item, "description"), cancellationToken);
                 var data = ParseDate(Valor(item, "pubDate"));
                 var metadados = JsonSerializer.Serialize(new
                 {
@@ -60,6 +70,7 @@ public sealed partial class RssAtomCollector(
                     categoria = Valor(item, "category")
                 });
 
+                cancellationToken.ThrowIfCancellationRequested();
                 return CriarDocumento(
                     titulo,
                     link,
@@ -74,13 +85,19 @@ public sealed partial class RssAtomCollector(
 
     private static IReadOnlyList<CollectedDocument> LerAtom(
         XDocument document,
-        string origem)
+        string origem,
+        CancellationToken cancellationToken)
     {
         return document
             .Descendants()
-            .Where(element => element.Name.LocalName == "entry")
+            .Where(element =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return element.Name.LocalName == "entry";
+            })
             .Select(entry =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var titulo = Valor(entry, "title") ?? "Sem título";
                 var link = entry.Elements()
                     .FirstOrDefault(element => element.Name.LocalName == "link")
@@ -88,7 +105,7 @@ public sealed partial class RssAtomCollector(
                     ?.Value ?? origem;
                 var conteudo = RemoverHtml(
                     Valor(entry, "content") ??
-                    Valor(entry, "summary"));
+                    Valor(entry, "summary"), cancellationToken);
                 var data = ParseDate(
                     Valor(entry, "published") ??
                     Valor(entry, "updated"));
@@ -98,6 +115,7 @@ public sealed partial class RssAtomCollector(
                     atualizadoEm = Valor(entry, "updated")
                 });
 
+                cancellationToken.ThrowIfCancellationRequested();
                 return CriarDocumento(
                     titulo,
                     link,
@@ -149,12 +167,14 @@ public sealed partial class RssAtomCollector(
             ? date.ToUniversalTime()
             : null;
 
-    private static string? RemoverHtml(string? value)
+    private static string? RemoverHtml(string? value, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(value))
             return null;
 
         var semTags = HtmlTagRegex().Replace(value, " ");
+        cancellationToken.ThrowIfCancellationRequested();
         return Regex.Replace(semTags, @"\s+", " ").Trim();
     }
 

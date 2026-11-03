@@ -192,6 +192,29 @@ namespace InvoiSys.Infrastructure.Migrations
                     b.ToTable("fontes", (string)null);
                 });
 
+            modelBuilder.Entity("InvoiSys.Infrastructure.Data.Entities.FonteColetaLease", b =>
+                {
+                    b.Property<Guid>("FonteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fonte_id");
+
+                    b.Property<long>("Geracao")
+                        .HasColumnType("bigint")
+                        .HasColumnName("geracao");
+
+                    b.Property<Guid>("ProprietarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("proprietario_id");
+
+                    b.Property<DateTimeOffset>("ValidoAte")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valido_ate");
+
+                    b.HasKey("FonteId");
+
+                    b.ToTable("fontes_coleta_lease", (string)null);
+                });
+
             modelBuilder.Entity("InvoiSys.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -451,6 +474,15 @@ namespace InvoiSys.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("FonteId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("InvoiSys.Infrastructure.Data.Entities.FonteColetaLease", b =>
+                {
+                    b.HasOne("InvoiSys.Domain.Entities.Fonte", null)
+                        .WithMany()
+                        .HasForeignKey("FonteId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
