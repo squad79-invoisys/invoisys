@@ -1,0 +1,68 @@
+name: invoisys
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: invoisys-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-invoisys}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/squad79-invoisys/invoisys-api:latest
+    container_name: invoisys-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__invoisys: Host=postgres;Port=5432;Database=${POSTGRES_DB:-invoisys};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Cors__AllowedOrigins__0: https://${APP_DOMAIN:?defina APP_DOMAIN no .env}
+      Jwt__Key: ${JWT_KEY:?defina JWT_KEY no .env}
+      BootstrapAdmin__Nome: ${BOOTSTRAP_ADMIN_NAME:-Administrador}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:?defina BOOTSTRAP_ADMIN_EMAIL no .env}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:?defina BOOTSTRAP_ADMIN_PASSWORD no .env}
+      Database__MigrateOnStartup: "true"
+      ColetaAutomatica__Enabled: "${COLETA_AUTOMATICA:-true}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/squad79-invoisys/invoisys-web:latest
+    container_name: invoisys-web
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: invoisys-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

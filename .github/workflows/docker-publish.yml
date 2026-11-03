@@ -119,7 +119,7 @@ jobs:
           file: src/InvoiSys.Web/Dockerfile
           push: true
           build-args: |
-            API_BASE_URL=http://localhost:8080/
+            API_BASE_URL=${{ vars.API_BASE_URL || 'http://localhost:8080/' }}
           tags: ${{ steps.web-metadata.outputs.tags }}
           labels: ${{ steps.web-metadata.outputs.labels }}
           cache-from: type=gha,scope=web

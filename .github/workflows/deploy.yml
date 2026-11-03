@@ -1,0 +1,71 @@
+name: Deploy no VPS
+
+on:
+  workflow_run:
+    workflows: ["Publicar imagens Docker"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Atualizar containers no servidor
+    runs-on: ubuntu-latest
+    # Só segue se a publicação das imagens tiver passado.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      # Enquanto o VPS não estiver configurado, o workflow termina verde
+      # avisando, em vez de falhar a cada push na main.
+      - name: Verificar se o servidor já foi configurado
+        id: check
+        run: |
+          if [ -z "${{ secrets.VPS_HOST }}" ]; then
+            echo "configurado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Deploy ignorado: o secret VPS_HOST ainda não foi criado."
+            echo "Veja deploy/production/README.md para configurar o servidor."
+          else
+            echo "configurado=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar chave SSH
+        if: steps.check.outputs.configurado == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Atualizar o InvoiSys
+        if: steps.check.outputs.configurado == 'true'
+        run: |
+          ssh -i ~/.ssh/id_deploy \
+              -o IdentitiesOnly=yes \
+              -p "${{ secrets.VPS_PORT || 22 }}" \
+              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              "/opt/invoisys/update.sh"
+
+      - name: Conferir se a aplicação respondeu
+        if: steps.check.outputs.configurado == 'true'
+        run: |
+          for tentativa in $(seq 1 12); do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://${{ vars.APP_DOMAIN }}/health" || true)
+            if [ "$codigo" = "200" ]; then
+              echo "Aplicação no ar (HTTP $codigo)."
+              exit 0
+            fi
+            echo "Tentativa $tentativa: HTTP $codigo. Aguardando..."
+            sleep 10
+          done
+          echo "A aplicação não respondeu 200 em /health depois de 2 minutos."
+          exit 1
