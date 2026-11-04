@@ -46,6 +46,19 @@ public sealed class DocumentosEndpointsTests(ApiFixture api)
     }
 
     [Fact]
+    public async Task Listar_DeveEncontrarDocumento_QuandoBuscarPeloConteudo()
+    {
+        var (token, _) = await ColetarFeedAsync();
+        var termo = Uri.EscapeDataString($"Primeiro documento {token}");
+
+        var pagina = await ListarAsync($"Busca={termo}");
+
+        pagina.Total.Should().Be(1);
+        pagina.Itens.Should().ContainSingle()
+            .Which.Titulo.Should().Be($"Nota fiscal {token} A");
+    }
+
+    [Fact]
     public async Task Listar_DeveRetornarVazio_QuandoBuscaNaoEncontrarNada()
     {
         var pagina = await ListarAsync($"Busca={ApiFixture.NovoToken()}");

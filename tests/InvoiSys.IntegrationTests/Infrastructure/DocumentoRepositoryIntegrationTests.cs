@@ -124,6 +124,42 @@ public sealed class DocumentoRepositoryIntegrationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task ListarAsync_DeveBuscarPeloConteudoTextual()
+    {
+        await using var dbContext = fixture.CreateDbContext();
+        var (execucao, _) = await CriarExecucaoAsync(dbContext);
+        var repository = new DocumentoRepository(dbContext);
+        var unitOfWork = new UnitOfWork(dbContext);
+        var termo = $"termo{Guid.NewGuid():N}";
+        var comTermo = CriarDocumentoComTexto(
+            execucao.Id,
+            "Portaria sem o termo no título",
+            $"O texto menciona {termo} no meio do conteúdo.",
+            Hash('K'));
+        var semTermo = CriarDocumentoComTexto(
+            execucao.Id,
+            "Portaria sem o termo no título",
+            "Conteúdo sem relação com a busca.",
+            Hash('M'));
+
+        await unitOfWork.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await repository.InserirNovosAsync(
+            [comTermo, semTermo],
+            TestContext.Current.CancellationToken);
+        await unitOfWork.CommitTransactionAsync(TestContext.Current.CancellationToken);
+
+        var (itens, total) = await repository.ListarAsync(
+            1,
+            10,
+            null,
+            termo.ToUpperInvariant(),
+            TestContext.Current.CancellationToken);
+
+        total.Should().Be(1);
+        itens.Should().ContainSingle().Which.Id.Should().Be(comTermo.Id);
+    }
+
+    [Fact]
     public async Task IndiceUnico_DeveSuportarUrlAsciiCom2048Caracteres()
     {
         await ValidarUrlLongaAsync(CriarUrlLonga('a', 2048));
@@ -262,6 +298,23 @@ public sealed class DocumentoRepositoryIntegrationTests(PostgresFixture fixture)
             "Legislação",
             null,
             "Conteúdo",
+            null,
+            hash);
+
+    private static Documento CriarDocumentoComTexto(
+        Guid execucaoId,
+        string titulo,
+        string conteudo,
+        string hash) =>
+        new(
+            execucaoId,
+            titulo,
+            UrlUnica(),
+            "WEB",
+            "Portal",
+            "Legislação",
+            null,
+            conteudo,
             null,
             hash);
 
