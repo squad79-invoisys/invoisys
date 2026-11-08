@@ -4,7 +4,13 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -22,12 +28,12 @@ jobs:
 
     steps:
       - name: Baixar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Configurar .NET 10
-        uses: actions/setup-dotnet@v4
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: "10.0.x"
+          global-json-file: global.json
 
       - name: Restaurar ferramentas locais
         run: dotnet tool restore
@@ -52,7 +58,7 @@ jobs:
 
     steps:
       - name: Baixar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -70,8 +76,10 @@ jobs:
         with:
           images: ${{ env.API_IMAGE }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Construir e publicar API
         uses: docker/build-push-action@v6
@@ -91,7 +99,7 @@ jobs:
 
     steps:
       - name: Baixar código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -109,8 +117,10 @@ jobs:
         with:
           images: ${{ env.WEB_IMAGE }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Construir e publicar Web
         uses: docker/build-push-action@v6
@@ -118,8 +128,6 @@ jobs:
           context: .
           file: src/InvoiSys.Web/Dockerfile
           push: true
-          build-args: |
-            API_BASE_URL=${{ vars.API_BASE_URL || 'http://localhost:8080/' }}
           tags: ${{ steps.web-metadata.outputs.tags }}
           labels: ${{ steps.web-metadata.outputs.labels }}
           cache-from: type=gha,scope=web

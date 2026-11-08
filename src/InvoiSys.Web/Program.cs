@@ -12,8 +12,11 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
-    ?? "https://localhost:7101";
+// Aceita URL absoluta (API em outra origem, como no desenvolvimento) ou
+// relativa, como "/", quando um proxy serve a tela e a API na mesma origem.
+var apiBaseUrl = new Uri(
+    new Uri(builder.HostEnvironment.BaseAddress),
+    builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7101/");
 
 builder.Services.AddMudServices();
 builder.Services.AddAuthorizationCore();
@@ -30,37 +33,37 @@ builder.Services.AddScoped<AuthClient>();
 builder.Services
     .AddRefitClient<IAuthApi>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<BrowserCredentialsHandler>();
 
 builder.Services
     .AddRefitClient<IFontesClient>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
     .AddRefitClient<IColetasClient>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
     .AddRefitClient<IDocumentosClient>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
     .AddRefitClient<IUsuariosClient>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
     .AddRefitClient<IDashboardClient>()
     .ConfigureHttpClient(client =>
-        client.BaseAddress = new Uri(apiBaseUrl))
+        client.BaseAddress = apiBaseUrl)
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 var host = builder.Build();

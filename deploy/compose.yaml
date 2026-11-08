@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -45,10 +45,12 @@ services:
     build:
       context: ..
       dockerfile: src/InvoiSys.Web/Dockerfile
-      args:
-        API_BASE_URL: http://localhost:${API_PORT:-8080}/
     image: invoisys-web:local
     container_name: invoisys-web
+    environment:
+      # Localmente a tela e a API ficam em portas diferentes, então o
+      # navegador precisa do endereço absoluto da API.
+      API_BASE_URL: http://localhost:${API_PORT:-8080}/
     ports:
       - "${WEB_PORT:-5056}:80"
     depends_on:

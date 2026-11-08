@@ -21,9 +21,8 @@ Este documento tem duas partes: **o que já está pronto** no repositório e
 Hoje, a cada push na `main`, as imagens são reconstruídas e publicadas
 sozinhas. O que ainda não existe é o servidor que consome essas imagens.
 
-> **Atenção à ordem:** enquanto a variable `API_BASE_URL` não for criada, a
-> imagem Web é construída apontando para `http://localhost:8080`. Crie a
-> variable **antes** de usar a imagem em produção.
+> **Atenção:** os pacotes no GHCR nascem **privados**. Sem o passo 8 o
+> `docker compose pull` do servidor falha com `denied` / `unauthorized`.
 
 ---
 
@@ -53,8 +52,24 @@ refresh token funcionar sem configuração extra.
 O workflow `.github/workflows/docker-publish.yml` roda a cada push na `main`:
 compila, executa os testes unitários e publica duas imagens no GHCR:
 
-- `ghcr.io/squad79-invoisys/invoisys-api:latest`
-- `ghcr.io/squad79-invoisys/invoisys-web:latest`
+- `ghcr.io/squad79-invoisys/invoisys-api`
+- `ghcr.io/squad79-invoisys/invoisys-web`
+
+Tags geradas:
+
+| Tag | Quando |
+|---|---|
+| `latest` | todo push na `main` |
+| `sha-xxxxxxx` | todo build, com o commit de origem |
+| `1.2.0` e `1.2` | push de uma tag git `v1.2.0` |
+
+A imagem Web não carrega o endereço da API: ele vem da variável de ambiente
+`API_BASE_URL` do container, gravada no `appsettings.json` quando o container
+sobe. Em produção o valor é `/`, porque o Caddy serve a tela e a API na mesma
+origem. A mesma imagem serve qualquer ambiente.
+
+Para fixar uma versão (ou voltar para uma anterior), defina `IMAGE_TAG` no
+`.env` do servidor e rode `./update.sh`.
 
 ### Arquivos de produção
 
@@ -198,17 +213,22 @@ Variables:
 | Nome | Valor |
 |------|-------|
 | `APP_DOMAIN` | `seudominio.com.br` |
-| `API_BASE_URL` | `https://seudominio.com.br/api/` |
 
-A `API_BASE_URL` é gravada **dentro da imagem Web durante o build**, porque o
-Blazor WebAssembly roda no navegador e precisa saber o endereço da API antes de
-ser servido. Depois de criar a variable, rode o publish de novo para gerar uma
-imagem utilizável.
+Se existir uma variable `API_BASE_URL` de uma versão anterior deste guia, ela
+não é mais usada e pode ser apagada.
 
 ### 8. Deixar as imagens acessíveis
 
-Em **Packages**, marque `invoisys-api` e `invoisys-web` como **public**. Para
-mantê-las privadas, gere um PAT com `read:packages` e faça login no VPS uma vez:
+As imagens já são publicadas, mas como **privadas**. Escolha uma opção:
+
+**Públicas (mais simples).** Em
+`https://github.com/orgs/squad79-invoisys/packages`, abra `invoisys-api` >
+**Package settings** > **Change visibility** > **Public**. Repita para
+`invoisys-web`. Se a opção estiver bloqueada, um owner da organização precisa
+liberar em **Settings > Packages** da org.
+
+**Privadas.** Gere um PAT (classic) com o escopo `read:packages` e faça login
+no VPS uma vez; o Docker guarda a credencial e o `update.sh` passa a funcionar:
 
 ```bash
 echo SEU_PAT | docker login ghcr.io -u SEU_USUARIO --password-stdin
@@ -257,9 +277,13 @@ o banco, confira se a `POSTGRES_PASSWORD` do `.env` bate com o volume
 existente: trocar a senha depois que o volume foi criado não muda a senha do
 Postgres.
 
-**A tela abre mas não loga.** Provavelmente a imagem Web foi construída sem a
-`API_BASE_URL` certa. Abra o console do navegador: se as chamadas vão para
-`localhost:8080`, é isso. Corrija a variable e rode o publish de novo.
+**A tela abre mas não loga.** Abra o console do navegador e veja para onde
+vão as chamadas `/api/...`. Elas devem ir para o próprio domínio. Confira o
+valor efetivo com `docker compose logs web | grep ApiBaseUrl` e
+`curl https://SEU_DOMINIO/appsettings.json`.
+
+**`docker compose pull` falha com `denied`.** Os pacotes ainda estão
+privados e o servidor não fez login no GHCR. Veja o passo 8.
 
 **O deploy termina verde mas nada muda.** Veja se o passo "Verificar se o
 servidor já foi configurado" avisou que o `VPS_HOST` não existe.

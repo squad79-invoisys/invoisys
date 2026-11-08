@@ -1,5 +1,12 @@
 name: invoisys
 
+# Rotação de logs para não encher o disco do servidor.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -9,7 +16,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -17,9 +24,10 @@ services:
       retries: 10
       start_period: 15s
     restart: unless-stopped
+    logging: *logging
 
   api:
-    image: ghcr.io/squad79-invoisys/invoisys-api:latest
+    image: ghcr.io/squad79-invoisys/invoisys-api:${IMAGE_TAG:-latest}
     container_name: invoisys-api
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -36,13 +44,18 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    logging: *logging
 
   web:
-    image: ghcr.io/squad79-invoisys/invoisys-web:latest
+    image: ghcr.io/squad79-invoisys/invoisys-web:${IMAGE_TAG:-latest}
     container_name: invoisys-web
+    environment:
+      # A tela e a API são servidas pelo Caddy na mesma origem.
+      API_BASE_URL: /
     depends_on:
       - api
     restart: unless-stopped
+    logging: *logging
 
   caddy:
     image: caddy:2-alpine
@@ -61,6 +74,7 @@ services:
       - web
       - api
     restart: unless-stopped
+    logging: *logging
 
 volumes:
   postgres-data:
