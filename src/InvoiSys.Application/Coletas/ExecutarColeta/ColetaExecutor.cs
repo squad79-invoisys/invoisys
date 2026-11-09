@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using InvoiSys.Application.Common.Coletas;
 using InvoiSys.Application.Common.Collectors;
@@ -18,6 +19,7 @@ public sealed class ColetaExecutor(
     IUnitOfWork unitOfWork,
     IFonteColetaLock fonteColetaLock,
     TimeProvider timeProvider,
+    ColetaMetrics metrics,
     ILogger<ColetaExecutor> logger) : IColetaExecutor
 {
     public async Task<ExecucaoColetaResponse> ExecutarManualAsync(
@@ -109,6 +111,7 @@ public sealed class ColetaExecutor(
             ? ExecucaoColeta.IniciarAutomatica(fonteId)
             : ExecucaoColeta.IniciarManual(fonteId, usuarioId!.Value);
         await execucaoRepository.AdicionarAsync(execucao, cancellationToken);
+        var inicioMedicao = Stopwatch.GetTimestamp();
 
         using var coletaScope = logger.BeginScope(
             "ColetaId:{ColetaId} UsuarioId:{UsuarioId} Automatica:{Automatica}",
@@ -170,11 +173,18 @@ public sealed class ColetaExecutor(
                 "Coleta concluída: {Inseridos} inserido(s), {Ignorados} já existente(s)",
                 quantidadeInserida, documentos.Count - quantidadeInserida);
 
+            metrics.RegistrarSucesso(
+                fonte.Tipo, Stopwatch.GetElapsedTime(inicioMedicao), quantidadeInserida);
+
             return ExecucaoColetaResponse.FromEntity(execucao);
         }
         catch (OperationCanceledException)
         {
             logger.LogWarning("Coleta cancelada antes de terminar.");
+
+            // Encerramento da aplicação não é falha de coleta; timeout da automática é.
+            if (automatica && !encerramentoToken.IsCancellationRequested)
+                metrics.RegistrarFalha(fonte.Tipo, Stopwatch.GetElapsedTime(inicioMedicao));
 
             if (transacaoIniciada)
                 await RollbackSemMascararAsync(execucao.Id);
@@ -193,6 +203,8 @@ public sealed class ColetaExecutor(
         catch (Exception exception)
         {
             logger.LogError(exception, "Coleta falhou para {Url}", fonte.Url);
+
+            metrics.RegistrarFalha(fonte.Tipo, Stopwatch.GetElapsedTime(inicioMedicao));
 
             var readicionarManual = transacaoIniciada;
             if (transacaoIniciada)

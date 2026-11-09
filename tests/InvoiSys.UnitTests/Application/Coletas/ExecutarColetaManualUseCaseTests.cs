@@ -130,6 +130,7 @@ public sealed class ExecutarColetaManualUseCaseTests
                 UnitOfWork,
                 new LockStub(),
                 TimeProvider.System,
+                TestMetrics.Criar(),
                 NullLogger<ColetaExecutor>.Instance));
     }
 
