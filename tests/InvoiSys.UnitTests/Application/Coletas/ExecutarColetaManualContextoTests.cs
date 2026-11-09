@@ -21,7 +21,7 @@ public sealed class ExecutarColetaManualContextoTests
         var useCase = new ExecutarColetaManualUseCase(new UsuarioStub(),
             new ColetaExecutor(new FonteStub(fonte), new ExecucoesStub(), documentos,
                 new CollectorResolverStub(), new UnitOfWorkStub(), new LockStub(),
-                TimeProvider.System, NullLogger<ColetaExecutor>.Instance));
+                TimeProvider.System, TestMetrics.Criar(), NullLogger<ColetaExecutor>.Instance));
 
         await useCase.ExecutarAsync(fonte.Id, TestContext.Current.CancellationToken);
 

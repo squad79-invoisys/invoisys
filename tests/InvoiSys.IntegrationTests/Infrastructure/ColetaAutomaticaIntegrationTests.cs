@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using InvoiSys.Application.Coletas;
 
 namespace InvoiSys.IntegrationTests.Infrastructure;
 
@@ -556,6 +557,8 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddMetrics();
+        services.AddSingleton<ColetaMetrics>();
         if (logs is not null)
             services.AddSingleton<ILogger<PostgresFonteColetaLock>>(logs);
         services.AddSingleton(TimeProvider.System);

@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
+using InvoiSys.Application.Coletas;
 
 namespace InvoiSys.IntegrationTests.Api;
 
@@ -132,6 +133,7 @@ public sealed class ColetaAutomaticaWorkerShutdownIntegrationTests(PostgresFixtu
         var descarte = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var builder = Host.CreateApplicationBuilder();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<ColetaMetrics>();
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(fixture.ConnectionString));
         builder.Services.AddScoped<IFonteRepository, FonteRepository>();
