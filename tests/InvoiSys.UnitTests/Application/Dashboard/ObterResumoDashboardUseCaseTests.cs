@@ -160,6 +160,11 @@ public sealed class ObterResumoDashboardUseCaseTests
         public Task<int> ContarDocumentosAsync(CancellationToken cancellationToken) =>
             Task.FromResult(TotalDocumentos);
 
+        public Task<IReadOnlyDictionary<StatusExecucaoColeta, int>> ContarExecucoesPorStatusAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<StatusExecucaoColeta, int>>(
+                new Dictionary<StatusExecucaoColeta, int>());
+
         public Task<IReadOnlyList<ExecucaoRecente>> ListarExecucoesRecentesAsync(
             int quantidade,
             CancellationToken cancellationToken)

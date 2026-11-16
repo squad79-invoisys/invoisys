@@ -5,6 +5,14 @@ namespace InvoiSys.Domain.Repositories;
 
 public interface IExecucaoColetaRepository
 {
+    Task<ExecucaoColeta?> ObterUltimaPorFonteAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<Guid>> ListarFontesEmAndamentoAsync(
+        CancellationToken cancellationToken);
+    Task<IReadOnlyList<ExecucaoColeta>> ListarEmAndamentoPorFonteAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken);
     Task AdicionarAsync(ExecucaoColeta execucao, CancellationToken cancellationToken);
     Task<ExecucaoColeta?> ObterPorIdAsync(Guid id, CancellationToken cancellationToken);
     Task<(IReadOnlyList<ExecucaoColeta> Itens, int Total)> ListarAsync(

@@ -1,0 +1,30 @@
+﻿@using InvoiSys.Application.Documentos
+
+<MudDialog>
+    <DialogContent>
+        <div class="dialog-tags">
+            <span class="dialog-tag">@Documento.Tipo</span>
+            <span class="dialog-tag">@Documento.Contexto</span>
+        </div>
+
+        @if (string.IsNullOrWhiteSpace(Documento.ConteudoTextual))
+        {
+            <p class="dialog-empty">Este documento não possui conteúdo textual.</p>
+        }
+        else
+        {
+            <div class="dialog-content" tabindex="0" aria-label="Conteúdo do documento">@Documento.ConteudoTextual</div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Fechar">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public DocumentoResponse Documento { get; set; } = null!;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private void Fechar() => MudDialog.Close(DialogResult.Ok(true));
+}

@@ -1,0 +1,5 @@
+﻿.dialog-tags { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.dialog-tag { background:#f1f4f7; border-radius:999px; color:#5e697a; font-size:var(--fs-small); font-weight:600; padding:4px 12px; }
+.dialog-content { color:#141c29; font-size:var(--fs-body); line-height:1.65; max-height:60vh; overflow:auto; overflow-wrap:anywhere; padding:2px 4px 2px 0; white-space:pre-wrap; }
+.dialog-content:focus-visible { outline:2px solid #0a9e40; outline-offset:2px; }
+.dialog-empty { color:#5e697a; font-size:var(--fs-body,14px); margin:0; }

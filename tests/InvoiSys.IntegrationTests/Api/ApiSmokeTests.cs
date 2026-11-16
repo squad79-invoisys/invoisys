@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace InvoiSys.IntegrationTests.Api;
 
+[Collection("Aspire")]
 public sealed class ApiSmokeTests
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
@@ -21,7 +22,8 @@ public sealed class ApiSmokeTests
                 $"Parameters:jwt-key={jwtKey}",
                 "Parameters:admin-email=admin@invoisys.test",
                 "Parameters:admin-password=InvoiSys_Admin_123!",
-                "UsePersistentDatabase=false"
+                "UsePersistentDatabase=false",
+                "ColetaAutomatica:Enabled=false"
             ],
             cancellationToken);
 
@@ -35,7 +37,17 @@ public sealed class ApiSmokeTests
             .WaitForResourceHealthyAsync("api", cancellationToken)
             .WaitAsync(DefaultTimeout, cancellationToken);
 
-        using var client = app.CreateHttpClient("api");
+
+        using var descoberta = app.CreateHttpClient("api");
+        using var client = new HttpClient(new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        })
+        {
+            BaseAddress = descoberta.BaseAddress
+        };
+
         using var response = await client.GetAsync("/alive", cancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -1,4 +1,5 @@
 using InvoiSys.Application.Common.Authentication;
+using InvoiSys.Application.Common.Coletas;
 using InvoiSys.Domain.Repositories;
 using InvoiSys.Infrastructure.Data;
 using InvoiSys.Infrastructure.Identity;
@@ -52,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IRegistroAuditoriaRepository, RegistroAuditoriaRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IFonteColetaLock, PostgresFonteColetaLock>();
 
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

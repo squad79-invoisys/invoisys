@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentValidation;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Responses;
@@ -30,6 +31,38 @@ public sealed class ApiExceptionFilter(
         }
 
         context.ExceptionHandled = true;
+        RegistrarExcecaoTratada(context);
+    }
+
+    private void RegistrarExcecaoTratada(ExceptionContext context)
+    {
+        var httpContext = context.HttpContext;
+
+        // Validação define só o Result; as demais definem o Response.StatusCode.
+        var status = (context.Result as ObjectResult)?.StatusCode
+            ?? httpContext.Response.StatusCode;
+
+        var traceId = Activity.Current?.TraceId.ToString()
+            ?? httpContext.TraceIdentifier;
+
+        var rota = $"{httpContext.Request.Method} " +
+            (context.ActionDescriptor.AttributeRouteInfo?.Template
+                ?? httpContext.Request.Path.Value);
+
+        if (status >= StatusCodes.Status500InternalServerError)
+        {
+            logger.LogError(
+                context.Exception,
+                "Exceção tratada em {Rota} respondeu {StatusCode} (TraceId {TraceId})",
+                rota, status, traceId);
+            return;
+        }
+
+        logger.LogWarning(
+            "Exceção tratada em {Rota} respondeu {StatusCode} (TraceId {TraceId}): {TipoErro} - {Mensagem}",
+            rota, status, traceId,
+            context.Exception.GetType().Name,
+            context.Exception.Message);
     }
 
     private static void HandleValidationException(
@@ -65,12 +98,8 @@ public sealed class ApiExceptionFilter(
             ApiResponse<object?>.Erro(exception.Message));
     }
 
-    private void HandleUnknownError(ExceptionContext context)
+    private static void HandleUnknownError(ExceptionContext context)
     {
-        logger.LogError(
-            context.Exception,
-            "Erro não tratado durante a requisição.");
-
         context.HttpContext.Response.StatusCode =
             StatusCodes.Status500InternalServerError;
 

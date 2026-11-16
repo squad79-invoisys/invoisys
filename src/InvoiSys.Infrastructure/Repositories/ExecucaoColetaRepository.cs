@@ -9,6 +9,33 @@ namespace InvoiSys.Infrastructure.Repositories;
 public sealed class ExecucaoColetaRepository(
     ApplicationDbContext dbContext) : IExecucaoColetaRepository
 {
+    public Task<ExecucaoColeta?> ObterUltimaPorFonteAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken) =>
+        dbContext.ExecucoesColeta
+            .AsNoTracking()
+            .Where(execucao => execucao.FonteId == fonteId)
+            .OrderByDescending(execucao => execucao.Inicio)
+            .ThenByDescending(execucao => execucao.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> ListarFontesEmAndamentoAsync(
+        CancellationToken cancellationToken) =>
+        await dbContext.ExecucoesColeta
+            .AsNoTracking()
+            .Where(execucao => execucao.Status == StatusExecucaoColeta.EmAndamento)
+            .Select(execucao => execucao.FonteId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ExecucaoColeta>> ListarEmAndamentoPorFonteAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken) =>
+        await dbContext.ExecucoesColeta
+            .Where(execucao => execucao.FonteId == fonteId &&
+                execucao.Status == StatusExecucaoColeta.EmAndamento)
+            .ToListAsync(cancellationToken);
+
     public Task AdicionarAsync(
         ExecucaoColeta execucao,
         CancellationToken cancellationToken) =>

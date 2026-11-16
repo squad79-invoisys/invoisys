@@ -1,0 +1,5 @@
+# Scripts rodam dentro de containers Linux: CRLF quebra o interpretador.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+Caddyfile text eol=lf
