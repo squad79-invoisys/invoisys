@@ -1,56 +1,847 @@
 @page "/documentos"
 @attribute [Authorize]
+@implements IDisposable
+@using System.Net
+@using System.Text.Json
+@using InvoiSys.Application.Coletas
 @using InvoiSys.Application.Documentos
+@using InvoiSys.Web.Components.Documentos
+@using InvoiSys.Web.Components.Fontes
 @inject IDocumentosClient DocumentosClient
+@inject IColetasClient ColetasClient
+@inject IFontesClient FontesClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <PageTitle>Documentos - InvoiSys</PageTitle>
 
-<MudText Typo="Typo.h4">Documentos</MudText>
-<MudText Typo="Typo.body1">
-    Documentos encontrados pelas rotinas de coleta.
-</MudText>
+<section class="docs-page" aria-label="Documentos">
+    <header class="docs-header">
+        <MudText Typo="Typo.h4">Documentos</MudText>
+        <MudText Typo="Typo.body1" Class="page-subtitle">Consulte, filtre e acesse os documentos encontrados pelas rotinas de coleta</MudText>
+    </header>
 
-<MudPaper Class="pa-4 mt-4" Outlined="true">
-    <MudText Typo="Typo.body2">Total de documentos</MudText>
-    <MudText Typo="Typo.h4">@_totalDocumentos</MudText>
-</MudPaper>
-
-<MudTextField T="string" @bind-Value="_contextoFiltro" @bind-Value:after="CarregarDocumentosAsync"
-              Label="Contexto" Variant="Variant.Outlined" Immediate="true" DebounceInterval="350"
-              Clearable="true" Class="mt-4" aria-label="Filtrar documentos por contexto" />
-
-<MudTable Items="_documentos" Hover="true" Class="mt-4">
-    <HeaderContent>
-        <MudTh>Título</MudTh>
-        <MudTh>Tipo</MudTh>
-        <MudTh>Contexto</MudTh>
-        <MudTh>Origem</MudTh>
-        <MudTh>Data da coleta</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Título">@context.Titulo</MudTd>
-        <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
-        <MudTd DataLabel="Contexto">@context.Contexto</MudTd>
-        <MudTd DataLabel="Origem">@context.Origem</MudTd>
-        <MudTd DataLabel="Data">@context.DataColeta.LocalDateTime</MudTd>
-    </RowTemplate>
-</MudTable>
-
-@code {
-    private IReadOnlyList<DocumentoResponse> _documentos = [];
-    private string? _contextoFiltro;
-    private int _totalDocumentos;
-
-    protected override async Task OnInitializedAsync()
+    @if (!string.IsNullOrWhiteSpace(_erro))
     {
-        var resumo = await DocumentosClient.ObterResumoAsync();
-        _totalDocumentos = resumo.Dados?.TotalDocumentos ?? 0;
-        await CarregarDocumentosAsync();
+        <MudAlert Severity="Severity.Error">
+            @_erro
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" Class="ml-2" OnClick="RecarregarAsync">
+                Tentar novamente
+            </MudButton>
+        </MudAlert>
     }
 
+    @* ===== Filtros ===== *@
+    <div class="docs-filter-card">
+        <div class="docs-filter-grid">
+            <div class="docs-filter-search">
+                <MudTextField T="string" @bind-Value="_busca" @bind-Value:after="AoMudarFiltroServidorAsync"
+                              Placeholder="Buscar por título ou origem..." Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Immediate="true" DebounceInterval="350" Clearable="true"
+                              MaxLength="200" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                              aria-label="Buscar documentos por título ou origem" />
+            </div>
+            <MudSelect T="string" @bind-Value="_coletaFiltro" @bind-Value:after="AoMudarFiltroLocalAsync"
+                       Label="Coleta" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       aria-label="Filtrar por coleta">
+                <MudSelectItem T="string" Value="@TodasColetas">Todas as coletas</MudSelectItem>
+                @foreach (var coleta in _coletas)
+                {
+                    <MudSelectItem T="string" Value="@coleta.Chave">@coleta.Rotulo</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" @bind-Value="_contexto" @bind-Value:after="AoMudarFiltroServidorAsync"
+                       Label="Contexto" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       aria-label="Filtrar por contexto">
+                <MudSelectItem T="string" Value="@Todos">Todos</MudSelectItem>
+                @foreach (var contexto in _contextosConhecidos)
+                {
+                    <MudSelectItem T="string" Value="@contexto">@contexto</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" @bind-Value="_tipo" @bind-Value:after="AoMudarFiltroLocalAsync"
+                       Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense"
+                       aria-label="Filtrar por tipo">
+                <MudSelectItem T="string" Value="@Todos">Todos</MudSelectItem>
+                @foreach (var tipo in _tipos)
+                {
+                    <MudSelectItem T="string" Value="@tipo">@RotuloTipo(tipo)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker @bind-Date="_de" @bind-Date:after="AoMudarFiltroLocalAsync" Label="Coletado de"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           DateFormat="dd/MM/yyyy" MaxDate="@(_ate ?? DateTime.Today)" />
+            <MudDatePicker @bind-Date="_ate" @bind-Date:after="AoMudarFiltroLocalAsync" Label="Coletado até"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           DateFormat="dd/MM/yyyy" MinDate="@_de" MaxDate="@DateTime.Today" />
+            <MudButton Variant="Variant.Outlined" Class="docs-clear-button" Disabled="@(!FiltrosAtivos)"
+                       StartIcon="@Icons.Material.Outlined.Close" OnClick="LimparFiltrosAsync">
+                Limpar filtros
+            </MudButton>
+        </div>
+
+        <div class="docs-quick" role="group" aria-label="Atalhos de período">
+            <span class="docs-quick-label">Período</span>
+            @foreach (var atalho in _atalhos)
+            {
+                <button type="button" class="quick-chip @(AtalhoAtivo(atalho) ? "active" : "")"
+                        aria-pressed="@(AtalhoAtivo(atalho) ? "true" : "false")"
+                        @onclick="() => AplicarAtalhoAsync(atalho)">
+                    @atalho.Rotulo
+                </button>
+            }
+        </div>
+    </div>
+
+    @* ===== Resumo ===== *@
+    <div class="docs-summary" aria-label="Resumo dos documentos">
+        <SummaryCard Title="Total de documentos" Value="@_totalGlobal" Icon="@Icons.Material.Outlined.Description"
+                     Tone="success" Description="Coletados pela plataforma" />
+        <SummaryCard Title="Resultados encontrados" Value="@_filtrados.Count" Icon="@Icons.Material.Outlined.Search"
+                     Tone="success" Description="@(FiltrosAtivos ? "Com os filtros aplicados" : "Sem filtros aplicados")" />
+        <SummaryCard Title="Coletas de origem" Value="@_coletasNosResultados" Icon="@Icons.Material.Filled.Sensors"
+                     Tone="success" Description="Presentes nos resultados atuais" />
+    </div>
+
+    @* ===== Tabela + detalhes ===== *@
+    <div class="docs-data-grid">
+        <div class="docs-table-card">
+            @if (_carregando)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+
+            <MudTable @ref="_tabela" T="DocumentoResponse" Items="_filtrados" Hover="true" Loading="_carregando"
+                      Breakpoint="Breakpoint.Sm" RowsPerPage="10" Elevation="0" Class="docs-table"
+                      OnRowClick="SelecionarLinha" RowClassFunc="ClasseDaLinha">
+                <HeaderContent>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="@(new Func<DocumentoResponse, object>(d => d.Titulo))">Documento</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>Tipo</MudTh>
+                    <MudTh>Contexto</MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="@(new Func<DocumentoResponse, object>(d => d.DataPublicacao ?? DateTimeOffset.MinValue))">Publicação</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>
+                        <MudTableSortLabel SortBy="@(new Func<DocumentoResponse, object>(d => d.DataColeta))">Coleta</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Class="actions-column">Ações</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Documento">
+                        <div class="doc-name">
+                            <span class="doc-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Description" Size="Size.Small" /></span>
+                            <div class="doc-name-text">
+                                <span class="doc-title" title="@context.Titulo">@context.Titulo</span>
+                                <span class="doc-origin" title="@context.Origem">@FormatarOrigem(context.Origem)</span>
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Tipo">
+                        <span class="tipo-badge @ClasseTipo(context.Tipo)">@RotuloTipo(context.Tipo)</span>
+                    </MudTd>
+                    <MudTd DataLabel="Contexto">@context.Contexto</MudTd>
+                    <MudTd DataLabel="Publicação">@FormatarData(context.DataPublicacao)</MudTd>
+                    <MudTd DataLabel="Coleta">@FormatarDataHora(context.DataColeta)</MudTd>
+                    <MudTd DataLabel="Ações" Class="actions-column">
+                        <div class="row-actions">
+                            <MudTooltip Text="Ver detalhes">
+                                <MudIconButton Icon="@Icons.Material.Outlined.Visibility" Size="Size.Small"
+                                               OnClick="@(() => Selecionar(context))" aria-label="Ver detalhes" />
+                            </MudTooltip>
+                            @if (UrlSegura(context.UrlOriginal))
+                            {
+                                <MudTooltip Text="Abrir documento original">
+                                    <a class="row-link" href="@context.UrlOriginal" target="_blank" rel="noopener noreferrer"
+                                       aria-label="Abrir documento original">
+                                        <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                                    </a>
+                                </MudTooltip>
+                            }
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="empty-state">
+                        <MudIcon Icon="@Icons.Material.Outlined.Description" Size="Size.Large" />
+                        @if (FiltrosAtivos)
+                        {
+                            <MudText Typo="Typo.subtitle1">Nenhum documento encontrado</MudText>
+                            <MudText Typo="Typo.body2">Ajuste ou limpe os filtros para ver mais resultados.</MudText>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="LimparFiltrosAsync">Limpar filtros</MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.subtitle1">Nenhum documento coletado ainda</MudText>
+                            <MudText Typo="Typo.body2">Execute uma coleta para que os documentos apareçam aqui.</MudText>
+                            <a class="empty-link" href="/coletas">Ir para Coletas</a>
+                        }
+                    </div>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" RowsPerPageString="por página"
+                                   InfoFormat="Exibindo {first_item}–{last_item} de {all_items} documentos" />
+                </PagerContent>
+            </MudTable>
+
+            @if (_documentos.Count < _totalNoServidor)
+            {
+                <div class="docs-load-more">
+                    <span>@TextoCarregados()</span>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="@_carregandoMais"
+                               OnClick="CarregarMaisAsync">
+                        @(_carregandoMais ? "Carregando..." : "Carregar mais")
+                    </MudButton>
+                </div>
+            }
+        </div>
+
+        <aside class="docs-details-card" aria-label="Detalhes do documento">
+            <h2>Detalhes do documento</h2>
+            @if (_selecionado is { } doc)
+            {
+                <div class="details-heading">
+                    <span class="details-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Description" /></span>
+                    <div class="details-name">
+                        <strong title="@doc.Titulo">@doc.Titulo</strong>
+                        <span>@FormatarOrigem(doc.Origem)</span>
+                    </div>
+                </div>
+
+                <div class="details-tags">
+                    <span class="tipo-badge @ClasseTipo(doc.Tipo)">@RotuloTipo(doc.Tipo)</span>
+                    <span class="context-badge" title="@doc.Contexto">@doc.Contexto</span>
+                </div>
+
+                <dl class="details-list">
+                    <div><dt>Publicado em</dt><dd>@FormatarDataHoraCompleta(doc.DataPublicacao)</dd></div>
+                    <div><dt>Coletado em</dt><dd>@FormatarDataHoraCompleta(doc.DataColeta)</dd></div>
+                    <div><dt>Coleta</dt><dd title="@RotuloColeta(doc.ExecucaoColetaId)">@RotuloColeta(doc.ExecucaoColetaId)</dd></div>
+                    <div><dt>Origem</dt><dd title="@doc.Origem">@FormatarOrigem(doc.Origem)</dd></div>
+                    <div><dt>Hash</dt><dd title="@doc.Hash">@AbreviarHash(doc.Hash)</dd></div>
+                </dl>
+
+                <div class="details-section">
+                    <h3>Conteúdo</h3>
+                    @if (string.IsNullOrWhiteSpace(doc.ConteudoTextual))
+                    {
+                        <p class="details-muted">Este documento não possui conteúdo textual.</p>
+                    }
+                    else
+                    {
+                        <p class="content-preview">@Resumir(doc.ConteudoTextual, 600)</p>
+                        <button type="button" class="link-button" @onclick="() => AbrirConteudoAsync(doc)">
+                            Ver conteúdo completo
+                        </button>
+                    }
+                </div>
+
+                @if (_metadados.Count > 0)
+                {
+                    <div class="details-section">
+                        <h3>Metadados</h3>
+                        <dl class="meta-list">
+                            @foreach (var (chave, valor) in _metadados)
+                            {
+                                <div><dt>@chave</dt><dd>@valor</dd></div>
+                            }
+                        </dl>
+                    </div>
+                }
+
+                <div class="details-actions">
+                    @if (UrlSegura(doc.UrlOriginal))
+                    {
+                        <a class="docs-btn docs-btn-primary" href="@doc.UrlOriginal" target="_blank" rel="noopener noreferrer">
+                            <MudIcon Icon="@Icons.Material.Outlined.OpenInNew" Size="Size.Small" />
+                            <span>Abrir original</span>
+                        </a>
+                    }
+                    <button type="button" class="docs-btn docs-btn-outline"
+                            @onclick='() => CopiarAsync(doc.UrlOriginal, "Link copiado.")'>
+                        <MudIcon Icon="@Icons.Material.Outlined.ContentCopy" Size="Size.Small" />
+                        <span>Copiar link</span>
+                    </button>
+                </div>
+            }
+            else
+            {
+                <div class="details-empty">Selecione um documento para visualizar os detalhes.</div>
+            }
+        </aside>
+    </div>
+
+    <div class="docs-tip">
+        <span class="tip-icon" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.LightMode" /></span>
+        <div class="tip-content">
+            <strong>Dica rápida</strong>
+            <p>Combine a busca com o contexto, a coleta e o período para chegar rápido ao documento que você procura.</p>
+        </div>
+    </div>
+</section>
+
+@code {
+    // A API aceita no máximo 100 itens por página (ListarDocumentosValidator / ListarColetasValidator).
+    private const int TamanhoPagina = 100;
+
+    // Teto de documentos carregados quando há filtros que a API não aplica (coleta, tipo e período).
+    private const int LimiteDocumentos = 1000;
+
+    private const string Todos = "Todos";
+    private const string TodasColetas = "Todas";
+
+    // ===== Modelos de exibição =====
+    private sealed record ColetaOpcao(Guid Id, string Fonte, DateTimeOffset Inicio, int Quantidade)
+    {
+        public string Chave => Id.ToString();
+        public string Rotulo => $"{Fonte} · {FormatarDataHora(Inicio)} · {Quantidade} doc(s)";
+    }
+
+    private sealed record AtalhoPeriodo(string Rotulo, int? Dias);
+
+    private static readonly AtalhoPeriodo[] _atalhos =
+    [
+        new("Qualquer data", null),
+        new("Hoje", 1),
+        new("Últimos 7 dias", 7),
+        new("Últimos 30 dias", 30)
+    ];
+
+    // Valores gravados em Documento.Tipo pelos coletores.
+    private static readonly string[] _tipos = ["RSS", "ATOM", "WEB"];
+
+    // ===== Estado dos filtros =====
+    private string? _busca;
+    private string _contexto = Todos;
+    private string _coletaFiltro = TodasColetas;
+    private string _tipo = Todos;
+    private DateTime? _de;
+    private DateTime? _ate;
+
+    // ===== Estado da tela =====
+    private readonly CancellationTokenSource _cts = new();
+    private readonly SortedSet<string> _contextosConhecidos =
+        new(new[] { "Legislação", "Documentação", "MOC", "Outro" }, StringComparer.CurrentCultureIgnoreCase);
+
+    private MudTable<DocumentoResponse>? _tabela;
+    private List<DocumentoResponse> _documentos = new();
+    private List<DocumentoResponse> _filtrados = new();
+    private List<ColetaOpcao> _coletas = new();
+    private Dictionary<Guid, ColetaOpcao> _coletaPorId = new();
+    private List<(string Chave, string Valor)> _metadados = new();
+    private DocumentoResponse? _selecionado;
+
+    private int _totalGlobal;
+    private int _totalNoServidor;
+    private int _paginaCarregada;
+    private int _coletasNosResultados;
+
+    private bool _carregando = true;
+    private bool _carregandoMais;
+    private string? _erro;
+
+    // Permite abrir a tela já filtrada por uma coleta: /documentos?coleta={id}
+    [Parameter, SupplyParameterFromQuery(Name = "coleta")]
+    public Guid? ColetaId { get; set; }
+
+    private bool FiltrosServidorAtivos => !string.IsNullOrWhiteSpace(_busca) || _contexto != Todos;
+
+    private bool FiltrosLocaisAtivos =>
+        _coletaFiltro != TodasColetas || _tipo != Todos || _de is not null || _ate is not null;
+
+    private bool FiltrosAtivos => FiltrosServidorAtivos || FiltrosLocaisAtivos;
+
+    private Guid? ColetaSelecionadaId =>
+        Guid.TryParse(_coletaFiltro, out var id) ? id : null;
+
+    protected override Task OnInitializedAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            await CarregarApoioAsync();
+
+            if (ColetaId is { } id && _coletaPorId.ContainsKey(id))
+                _coletaFiltro = id.ToString();
+
+            await CarregarDocumentosAsync();
+        });
+
+    // ===== Carregamento =====
+    private Task RecarregarAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            await CarregarApoioAsync();
+            await CarregarDocumentosAsync();
+        });
+
+    private Task CarregarApoioAsync() =>
+        Task.WhenAll(CarregarResumoAsync(), CarregarColetasAsync());
+
+    // Controla o indicador de carregamento e transforma falhas da API em mensagem na tela.
+    private async Task ComCarregamentoAsync(Func<Task> acao)
+    {
+        _carregando = true;
+        _erro = null;
+
+        try
+        {
+            await acao();
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            // A página foi fechada durante o carregamento.
+        }
+        catch (Refit.ApiException exception)
+        {
+            _erro = await MensagemDeErroAsync(exception, "Não foi possível carregar os documentos.");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _erro = "Não foi possível acessar a API. Tente novamente.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private async Task CarregarResumoAsync()
+    {
+        var resposta = await DocumentosClient.ObterResumoAsync(_cts.Token);
+        _totalGlobal = resposta.Dados?.TotalDocumentos ?? 0;
+    }
+
+    // Os nomes das fontes e as coletas recentes alimentam o filtro "Coleta".
+    // Se isso falhar, a tela continua funcionando e o filtro fica só com "Todas as coletas".
+    private async Task CarregarColetasAsync()
+    {
+        try
+        {
+            var fontes = await CarregarFontesAsync();
+
+            var resposta = await ColetasClient.ListarAsync(1, TamanhoPagina, cancellationToken: _cts.Token);
+            IReadOnlyList<ExecucaoColetaResponse> execucoes = resposta.Dados?.Itens ?? [];
+
+            _coletaPorId = execucoes.ToDictionary(
+                execucao => execucao.Id,
+                execucao => new ColetaOpcao(
+                    execucao.Id,
+                    fontes.GetValueOrDefault(execucao.FonteId) ?? "Fonte não identificada",
+                    execucao.Inicio,
+                    execucao.QuantidadeDocumentos));
+
+            _coletas = _coletaPorId.Values
+                .Where(coleta => coleta.Quantidade > 0)
+                .OrderByDescending(coleta => coleta.Inicio)
+                .ToList();
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private async Task<Dictionary<Guid, string>> CarregarFontesAsync()
+    {
+        var fontes = new Dictionary<Guid, string>();
+        var pagina = 1;
+        var totalPaginas = 1;
+
+        while (pagina <= totalPaginas)
+        {
+            var resposta = await FontesClient.ListarAsync(pagina, TamanhoPagina, cancellationToken: _cts.Token);
+
+            if (resposta.Dados is not { } dados)
+                break;
+
+            foreach (var fonte in dados.Itens)
+            {
+                fontes[fonte.Id] = fonte.Nome;
+                _contextosConhecidos.Add(fonte.Contexto);
+            }
+
+            totalPaginas = dados.TotalPaginas;
+            pagina++;
+        }
+
+        return fontes;
+    }
+
+    // Busca e contexto são aplicados pela API. Aqui a lista é recarregada desde a primeira página.
     private async Task CarregarDocumentosAsync()
     {
-        var response = await DocumentosClient.ListarAsync(contexto: _contextoFiltro);
-        _documentos = response.Dados?.Itens ?? [];
+        var resposta = await DocumentosClient.ListarAsync(
+            pagina: 1,
+            tamanhoPagina: TamanhoPagina,
+            contexto: ContextoDoFiltro(),
+            busca: BuscaDoFiltro(),
+            cancellationToken: _cts.Token);
+
+        var dados = resposta.Dados;
+
+        _documentos = dados?.Itens.ToList() ?? new List<DocumentoResponse>();
+        _totalNoServidor = dados?.Total ?? 0;
+        _paginaCarregada = 1;
+        RegistrarContextos();
+
+        await GarantirCarregamentoLocalAsync();
+        AplicarFiltros();
+    }
+
+    private async Task<bool> CarregarProximaPaginaAsync()
+    {
+        var resposta = await DocumentosClient.ListarAsync(
+            pagina: _paginaCarregada + 1,
+            tamanhoPagina: TamanhoPagina,
+            contexto: ContextoDoFiltro(),
+            busca: BuscaDoFiltro(),
+            cancellationToken: _cts.Token);
+
+        var dados = resposta.Dados;
+        IReadOnlyList<DocumentoResponse> novos = dados?.Itens ?? [];
+
+        if (novos.Count == 0)
+            return false;
+
+        _paginaCarregada++;
+        _totalNoServidor = dados?.Total ?? _totalNoServidor;
+
+        // Coletas novas podem deslocar a paginação: evita documentos repetidos na lista.
+        var existentes = _documentos.Select(documento => documento.Id).ToHashSet();
+        _documentos.AddRange(novos.Where(documento => !existentes.Contains(documento.Id)));
+        RegistrarContextos();
+
+        return true;
+    }
+
+    // A API não filtra por coleta, tipo nem período. Quando um desses filtros está ativo,
+    // carrega mais páginas (até LimiteDocumentos) para que o filtro enxergue mais documentos.
+    private async Task GarantirCarregamentoLocalAsync()
+    {
+        while (FiltrosLocaisAtivos
+               && _documentos.Count < _totalNoServidor
+               && _documentos.Count < LimiteDocumentos)
+        {
+            if (!await CarregarProximaPaginaAsync())
+                break;
+        }
+    }
+
+    private async Task CarregarMaisAsync()
+    {
+        if (_carregandoMais)
+            return;
+
+        _carregandoMais = true;
+
+        try
+        {
+            await CarregarProximaPaginaAsync();
+            AplicarFiltros();
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Refit.ApiException exception)
+        {
+            Snackbar.Add(
+                await MensagemDeErroAsync(exception, "Não foi possível carregar mais documentos."),
+                Severity.Error);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível acessar a API. Tente novamente.", Severity.Error);
+        }
+        finally
+        {
+            _carregandoMais = false;
+        }
+    }
+
+    // ===== Filtros =====
+    private Task AoMudarFiltroServidorAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            await CarregarDocumentosAsync();
+            IrParaPrimeiraPagina();
+        });
+
+    private Task AoMudarFiltroLocalAsync() =>
+        ComCarregamentoAsync(async () =>
+        {
+            await GarantirCarregamentoLocalAsync();
+            AplicarFiltros();
+            IrParaPrimeiraPagina();
+        });
+
+    private Task AplicarAtalhoAsync(AtalhoPeriodo atalho)
+    {
+        if (atalho.Dias is { } dias)
+        {
+            _ate = DateTime.Today;
+            _de = DateTime.Today.AddDays(-(dias - 1));
+        }
+        else
+        {
+            _de = null;
+            _ate = null;
+        }
+
+        return AoMudarFiltroLocalAsync();
+    }
+
+    private bool AtalhoAtivo(AtalhoPeriodo atalho) =>
+        atalho.Dias is { } dias
+            ? _ate?.Date == DateTime.Today && _de?.Date == DateTime.Today.AddDays(-(dias - 1))
+            : _de is null && _ate is null;
+
+    private Task LimparFiltrosAsync()
+    {
+        var precisaRecarregar = FiltrosServidorAtivos;
+
+        _busca = null;
+        _contexto = Todos;
+        _coletaFiltro = TodasColetas;
+        _tipo = Todos;
+        _de = null;
+        _ate = null;
+
+        return precisaRecarregar ? AoMudarFiltroServidorAsync() : AoMudarFiltroLocalAsync();
+    }
+
+    private void AplicarFiltros()
+    {
+        IEnumerable<DocumentoResponse> consulta = _documentos;
+
+        if (ColetaSelecionadaId is { } coletaId)
+            consulta = consulta.Where(documento => documento.ExecucaoColetaId == coletaId);
+
+        if (_tipo != Todos)
+            consulta = consulta.Where(documento =>
+                string.Equals(documento.Tipo, _tipo, StringComparison.OrdinalIgnoreCase));
+
+        if (_de is { } de)
+            consulta = consulta.Where(documento => documento.DataColeta.ToLocalTime().Date >= de.Date);
+
+        if (_ate is { } ate)
+            consulta = consulta.Where(documento => documento.DataColeta.ToLocalTime().Date <= ate.Date);
+
+        _filtrados = consulta.ToList();
+        _coletasNosResultados = _filtrados.Select(documento => documento.ExecucaoColetaId).Distinct().Count();
+
+        var idAtual = _selecionado?.Id;
+        DefinirSelecao(_filtrados.FirstOrDefault(documento => documento.Id == idAtual) ?? _filtrados.FirstOrDefault());
+    }
+
+    private void IrParaPrimeiraPagina() => _tabela?.NavigateTo(Page.First);
+
+    private string? ContextoDoFiltro() => _contexto == Todos ? null : _contexto;
+
+    private string? BuscaDoFiltro() => string.IsNullOrWhiteSpace(_busca) ? null : _busca.Trim();
+
+    private void RegistrarContextos()
+    {
+        foreach (var documento in _documentos)
+            _contextosConhecidos.Add(documento.Contexto);
+    }
+
+    // ===== Seleção e ações =====
+    private void DefinirSelecao(DocumentoResponse? documento)
+    {
+        _selecionado = documento;
+        _metadados = documento is null ? new() : LerMetadados(documento.Metadados);
+    }
+
+    private void Selecionar(DocumentoResponse documento) => DefinirSelecao(documento);
+
+    private void SelecionarLinha(TableRowClickEventArgs<DocumentoResponse> args) => DefinirSelecao(args.Item);
+
+    private string ClasseDaLinha(DocumentoResponse documento, int indice) =>
+        documento.Id == _selecionado?.Id ? "docs-row-selected" : "";
+
+    private async Task AbrirConteudoAsync(DocumentoResponse documento)
+    {
+        var parametros = new DialogParameters
+        {
+            [nameof(DocumentoDialog.Documento)] = documento
+        };
+
+        var opcoes = new DialogOptions
+        {
+            CloseButton = true,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<DocumentoDialog>(documento.Titulo, parametros, opcoes);
+    }
+
+    private async Task CopiarAsync(string texto, string mensagem)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", texto);
+            Snackbar.Add(mensagem, Severity.Success);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível copiar automaticamente.", Severity.Warning);
+        }
+    }
+
+    // ===== Helpers de exibição =====
+    private string TextoCarregados()
+    {
+        var texto = $"{_documentos.Count:N0} de {_totalNoServidor:N0} documentos carregados.";
+
+        return FiltrosLocaisAtivos
+            ? $"{texto} Os filtros de coleta, tipo e período valem para os documentos carregados."
+            : texto;
+    }
+
+    private string RotuloColeta(Guid execucaoColetaId) =>
+        _coletaPorId.TryGetValue(execucaoColetaId, out var coleta)
+            ? $"{coleta.Fonte} · {FormatarDataHora(coleta.Inicio)}"
+            : "Coleta anterior";
+
+    private static string RotuloTipo(string tipo) => tipo.ToUpperInvariant() switch
+    {
+        "RSS" => "RSS",
+        "ATOM" => "Atom",
+        "WEB" => "Web / HTML",
+        _ => tipo
+    };
+
+    private static string ClasseTipo(string tipo) => tipo.ToUpperInvariant() switch
+    {
+        "RSS" => "tipo-rss",
+        "ATOM" => "tipo-atom",
+        "WEB" => "tipo-web",
+        _ => "tipo-outro"
+    };
+
+    private static string FormatarOrigem(string origem) =>
+        Uri.TryCreate(origem, UriKind.Absolute, out var uri) ? uri.Host : origem;
+
+    // Só links http/https viram <a>: a URL vem de fontes externas e "javascript:" também é uma URI absoluta.
+    private static bool UrlSegura(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static string AbreviarHash(string hash) =>
+        hash.Length <= 14 ? hash : $"{hash[..8]}…{hash[^4..]}";
+
+    private static string Resumir(string texto, int limite)
+    {
+        var limpo = texto.Trim();
+        return limpo.Length <= limite ? limpo : limpo[..limite].TrimEnd() + "…";
+    }
+
+    private static List<(string Chave, string Valor)> LerMetadados(string? json)
+    {
+        var itens = new List<(string Chave, string Valor)>();
+
+        if (string.IsNullOrWhiteSpace(json))
+            return itens;
+
+        try
+        {
+            using var documento = JsonDocument.Parse(json);
+
+            if (documento.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                itens.Add(("Valor", Resumir(json, 300)));
+                return itens;
+            }
+
+            foreach (var propriedade in documento.RootElement.EnumerateObject())
+            {
+                var valor = propriedade.Value.ValueKind switch
+                {
+                    JsonValueKind.String => propriedade.Value.GetString(),
+                    JsonValueKind.Null or JsonValueKind.Undefined => (string?)null,
+                    _ => propriedade.Value.GetRawText()
+                };
+
+                if (!string.IsNullOrWhiteSpace(valor))
+                    itens.Add((RotuloMetadado(propriedade.Name), Resumir(valor, 300)));
+            }
+        }
+        catch (JsonException)
+        {
+            itens.Add(("Valor", Resumir(json, 300)));
+        }
+
+        return itens;
+    }
+
+    private static string RotuloMetadado(string nome) => nome.ToLowerInvariant() switch
+    {
+        "descricao" => "Descrição",
+        "idioma" => "Idioma",
+        "canonica" => "URL canônica",
+        "" => nome,
+        _ => char.ToUpperInvariant(nome[0]) + nome[1..]
+    };
+
+    // Datas chegam da API em UTC; a tela mostra no fuso do navegador.
+    private static string FormatarDataHora(DateTimeOffset valor)
+    {
+        var local = valor.ToLocalTime();
+        var hoje = DateTime.Today;
+        var hora = local.ToString("HH:mm");
+
+        if (local.Date == hoje)
+            return $"Hoje, {hora}";
+
+        if (local.Date == hoje.AddDays(-1))
+            return $"Ontem, {hora}";
+
+        return local.ToString("dd/MM/yyyy, HH:mm");
+    }
+
+    private static string FormatarData(DateTimeOffset? valor) =>
+        valor is { } data ? data.ToLocalTime().ToString("dd/MM/yyyy") : "—";
+
+    private static string FormatarDataHoraCompleta(DateTimeOffset? valor) =>
+        valor is { } data ? data.ToLocalTime().ToString("dd/MM/yyyy, HH:mm") : "—";
+
+    // As respostas de erro da API seguem o formato ApiResponse { mensagem }.
+    private static async Task<string> MensagemDeErroAsync(Refit.ApiException exception, string mensagemPadrao)
+    {
+        if (exception.StatusCode == HttpStatusCode.Unauthorized)
+            return "Sua sessão expirou. Entre novamente.";
+
+        if (exception.StatusCode == HttpStatusCode.Forbidden)
+            return "Você não tem permissão para realizar esta ação.";
+
+        try
+        {
+            var corpo = await exception.GetContentAsAsync<InvoiSys.Application.Common.Responses.ApiResponse<object>>();
+
+            if (!string.IsNullOrWhiteSpace(corpo?.Mensagem))
+                return corpo.Mensagem;
+        }
+        catch (Exception)
+        {
+            // Corpo ausente ou fora do formato esperado: usa a mensagem padrão.
+        }
+
+        return mensagemPadrao;
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
     }
 }
