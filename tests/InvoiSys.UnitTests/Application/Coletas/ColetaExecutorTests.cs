@@ -6,6 +6,8 @@ using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Enums;
 using InvoiSys.Domain.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
+using InvoiSys.Application.Coletas;
+using InvoiSys.Application.Common.Exceptions;
 
 namespace InvoiSys.UnitTests.Application.Coletas;
 
@@ -87,6 +89,40 @@ public sealed class ColetaExecutorTests
         fixture.UnitOfWork.Rollbacks.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Manual_Concluida_DeveEmitirMetricasDeSucesso()
+    {
+        var fixture = new Fixture();
+        using var medicoes = new MedicoesColeta(fixture.MeterFactory);
+
+        await fixture.CriarExecutor().ExecutarManualAsync(
+            fixture.Fonte.Id, Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        medicoes.Itens.Select(m => m.Instrumento).Should().BeEquivalentTo(
+            "invoisys.coletas.executadas",
+            "invoisys.coletas.duracao",
+            "invoisys.documentos.coletados");
+        medicoes.Itens.Single(m => m.Instrumento == "invoisys.coletas.executadas")
+            .Tags["status"].Should().Be("sucesso");
+        medicoes.Itens.Single(m => m.Instrumento == "invoisys.documentos.coletados")
+            .Valor.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Manual_ComFalhaNoColetor_DeveEmitirMetricaDeFalha()
+    {
+        var fixture = new Fixture { ErroColetor = new InvalidOperationException("falhou") };
+        using var medicoes = new MedicoesColeta(fixture.MeterFactory);
+
+        var act = () => fixture.CriarExecutor().ExecutarManualAsync(
+            fixture.Fonte.Id, Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<BusinessException>();
+        medicoes.Itens.Single(m => m.Instrumento == "invoisys.coletas.executadas")
+            .Tags["status"].Should().Be("falha");
+        medicoes.Itens.Should().NotContain(m => m.Instrumento == "invoisys.documentos.coletados");
+    }
+
     private sealed class Fixture
     {
         public Fonte Fonte { get; } = new("Portal", "https://exemplo.com",
@@ -95,12 +131,15 @@ public sealed class ColetaExecutorTests
         public ExecucoesStub Execucoes { get; } = new();
         public DocumentosStub Documentos { get; } = new();
         public UnitOfWorkStub UnitOfWork { get; } = new();
+        public TestMeterFactory MeterFactory { get; } = new();
         public Exception? ErroColetor { get; init; }
 
         public ColetaExecutor CriarExecutor() => new(
             new FonteStub(Fonte), Execucoes, Documentos,
             new ResolverStub(new CollectorStub(ErroColetor)), UnitOfWork,
-            new LockStub(), Relogio, NullLogger<ColetaExecutor>.Instance);
+            new LockStub(), Relogio,
+            new ColetaMetrics(MeterFactory, NullLogger<ColetaMetrics>.Instance),
+            NullLogger<ColetaExecutor>.Instance);
     }
 
     private sealed class RelogioStub : TimeProvider

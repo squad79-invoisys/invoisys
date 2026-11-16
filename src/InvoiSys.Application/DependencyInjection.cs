@@ -22,6 +22,7 @@ using InvoiSys.Application.Usuarios.CriarUsuario;
 using InvoiSys.Application.Usuarios.ListarUsuarios;
 using InvoiSys.Application.Usuarios.RedefinirSenha;
 using Microsoft.Extensions.DependencyInjection;
+using InvoiSys.Application.Coletas;
 
 namespace InvoiSys.Application;
 
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IAlterarStatusFonteUseCase, AlterarStatusFonteUseCase>();
 
         services.AddScoped<IExecutarColetaManualUseCase, ExecutarColetaManualUseCase>();
+        services.AddSingleton<ColetaMetrics>();
         services.AddScoped<IColetaExecutor, ColetaExecutor>();
         services.AddScoped<IConsultarColetaUseCase, ConsultarColetaUseCase>();
         services.AddScoped<IListarColetasUseCase, ListarColetasUseCase>();

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddDbContextHealthCheck<ApplicationDbContext>();
 
 builder.Services.AddApiConfiguration(builder.Configuration);
 builder.Services.AddAuthenticationConfiguration(builder.Configuration);

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,10 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class Extensions
 {
+    // Mesmo valor de ColetaMetrics.MeterName (Application). O ServiceDefaults
+    // não referencia a Application, por isso o nome é repetido aqui.
+    private const string ColetasMeterName = "InvoiSys.Coletas";
+
     public static TBuilder AddServiceDefaults<TBuilder>(
         this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
@@ -47,7 +52,8 @@ public static class Extensions
                 metrics
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter(ColetasMeterName);
             })
             .WithTracing(tracing =>
             {
@@ -83,12 +89,45 @@ public static class Extensions
         this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
+        // Só o processo: responde /alive e não depende de nenhum recurso externo.
         builder.Services
             .AddHealthChecks()
             .AddCheck(
                 "self",
                 () => HealthCheckResult.Healthy(),
                 ["live"]);
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Registra a verificação do banco. Sem a tag "live", ela entra só em /health
+    /// e nunca em /alive. O timeout evita que um banco lento segure a resposta.
+    /// </summary>
+    public static IHostApplicationBuilder AddDbContextHealthCheck<TContext>(
+        this IHostApplicationBuilder builder,
+        string name = "postgresql",
+        TimeSpan? timeout = null)
+        where TContext : DbContext
+    {
+        var limite = timeout ?? TimeSpan.FromSeconds(3);
+
+        builder.Services
+            .AddHealthChecks()
+            .AddDbContextCheck<TContext>(
+                name,
+                failureStatus: HealthStatus.Unhealthy,
+                tags: ["ready"]);
+
+        // AddDbContextCheck não expõe timeout; ele fica no registro do check.
+        builder.Services.Configure<HealthCheckServiceOptions>(options =>
+        {
+            foreach (var registro in options.Registrations)
+            {
+                if (registro.Name == name)
+                    registro.Timeout = limite;
+            }
+        });
 
         return builder;
     }
