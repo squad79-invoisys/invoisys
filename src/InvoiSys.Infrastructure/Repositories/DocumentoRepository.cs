@@ -114,7 +114,8 @@ public sealed class DocumentoRepository(
         {
             query = query.Where(documento =>
                 EF.Functions.ILike(documento.Titulo, $"%{busca}%") ||
-                EF.Functions.ILike(documento.Origem, $"%{busca}%"));
+                EF.Functions.ILike(documento.Origem, $"%{busca}%") ||
+                EF.Functions.ILike(documento.ConteudoTextual!, $"%{busca}%"));
         }
 
         var total = await query.CountAsync(cancellationToken);
