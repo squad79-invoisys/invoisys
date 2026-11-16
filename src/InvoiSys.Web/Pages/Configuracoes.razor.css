@@ -9,3 +9,7 @@
 .conta-dados div { display:grid; gap:2px; }
 .conta-dados dt { color:#5e697a; font-size:12px; }
 .conta-dados dd { color:#141c29; font-size:14px; font-weight:600; margin:0; overflow-wrap:anywhere; }
+.conta-senha { border-top:1px solid #e3e8ed; display:grid; gap:12px; margin-top:24px; max-width:420px; padding-top:24px; }
+.conta-senha h2 { color:#141c29; font-size:16px; font-weight:700; margin:0; }
+.conta-senha p { color:#5e697a; font-size:12px; margin:0; }
+.conta-senha ::deep .conta-senha-botao { justify-self:start; margin-top:4px; }

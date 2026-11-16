@@ -127,6 +127,34 @@ internal sealed class UserManagementService(
         return await CriarResumoAsync(usuario);
     }
 
+    public async Task<UserSummary> AlterarPropriaSenhaAsync(
+        Guid usuarioId,
+        string senhaAtual,
+        string novaSenha,
+        Guid? sessaoAtualId,
+        CancellationToken cancellationToken)
+    {
+        var usuario = await userManager.FindByIdAsync(usuarioId.ToString())
+            ?? throw new NotFoundException("Usuário não encontrado.");
+
+        var result = await userManager.ChangePasswordAsync(
+            usuario,
+            senhaAtual,
+            novaSenha);
+
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.PasswordMismatch)))
+                throw new BusinessException("A senha atual está incorreta.");
+
+            throw new BusinessException(JuntarErros(result));
+        }
+
+        await RevogarSessoesAsync(usuario.Id, cancellationToken, manterSessaoId: sessaoAtualId);
+
+        return await CriarResumoAsync(usuario);
+    }
+
     private async Task<UserSummary> CriarResumoAsync(ApplicationUser usuario)
     {
         var perfis = await userManager.GetRolesAsync(usuario);
@@ -141,12 +169,14 @@ internal sealed class UserManagementService(
 
     private async Task RevogarSessoesAsync(
         Guid usuarioId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? manterSessaoId = null)
     {
         var sessoes = await dbContext.RefreshTokens
             .Where(token =>
                 token.UserId == usuarioId &&
-                token.RevogadoEm == null)
+                token.RevogadoEm == null &&
+                token.SessionId != manterSessaoId)
             .ToListAsync(cancellationToken);
 
         foreach (var sessao in sessoes)
