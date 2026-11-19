@@ -1,0 +1,143 @@
+@page "/configuracoes"
+@attribute [Authorize]
+@using System.Net
+@using System.Security.Claims
+@using InvoiSys.Application.Usuarios.AlterarPropriaSenha
+@inject IContaClient ContaClient
+@inject ISnackbar Snackbar
+
+<PageTitle>Configurações - InvoiSys</PageTitle>
+
+<section class="configuracoes-page" aria-label="Configurações">
+    <header class="configuracoes-header">
+        <MudText Typo="Typo.h3" Class="configuracoes-title">Configurações</MudText>
+        <MudText Typo="Typo.body1">Consulte sua conta e gerencie os acessos à plataforma</MudText>
+    </header>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="configuracoes-tabs">
+        <MudTabPanel Text="Minha conta" Icon="@Icons.Material.Outlined.AccountCircle">
+            <div class="configuracoes-panel">
+                <div class="conta-card">
+                    <span class="conta-avatar" aria-hidden="true">@UserDisplay.Iniciais(_nome)</span>
+                    <dl class="conta-dados">
+                        <div><dt>Nome</dt><dd>@_nome</dd></div>
+                        <div><dt>E-mail</dt><dd>@_email</dd></div>
+                        <div><dt>Perfil</dt><dd>@_perfis</dd></div>
+                    </dl>
+                </div>
+
+                <section class="conta-senha" aria-label="Alterar senha">
+                    <h2>Alterar senha</h2>
+                    <p>
+                        Use pelo menos 10 caracteres, com letra maiúscula, minúscula, número e caractere especial.
+                        As outras sessões abertas com a sua conta serão encerradas.
+                    </p>
+                    <MudTextField T="string" @bind-Value="_senhaAtual" Label="Senha atual" InputType="InputType.Password"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" autocomplete="current-password" />
+                    <MudTextField T="string" @bind-Value="_novaSenha" Label="Nova senha" InputType="InputType.Password"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" autocomplete="new-password" />
+                    <MudTextField T="string" @bind-Value="_confirmacao" Label="Confirme a nova senha" InputType="InputType.Password"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" autocomplete="new-password"
+                                  Error="@ConfirmacaoDiverge" ErrorText="As senhas não conferem." />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="conta-senha-botao"
+                               Disabled="@(!PodeAlterarSenha)" OnClick="AlterarSenhaAsync">
+                        @(_alterandoSenha ? "Alterando..." : "Alterar senha")
+                    </MudButton>
+                </section>
+            </div>
+        </MudTabPanel>
+
+        @if (_administrador)
+        {
+            <MudTabPanel Text="Usuários" Icon="@Icons.Material.Outlined.Group">
+                <div class="configuracoes-panel">
+                    <Usuarios />
+                </div>
+            </MudTabPanel>
+        }
+    </MudTabs>
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private string _nome = string.Empty;
+    private string _email = string.Empty;
+    private string _perfis = string.Empty;
+    private bool _administrador;
+
+    private string _senhaAtual = string.Empty;
+    private string _novaSenha = string.Empty;
+    private string _confirmacao = string.Empty;
+    private bool _alterandoSenha;
+
+    private bool ConfirmacaoDiverge => _confirmacao.Length > 0 && _confirmacao != _novaSenha;
+
+    private bool PodeAlterarSenha =>
+        !_alterandoSenha &&
+        _senhaAtual.Length > 0 &&
+        _novaSenha.Length > 0 &&
+        _confirmacao == _novaSenha;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var usuario = (await AuthenticationState).User;
+
+        _nome = UserDisplay.Identificacao(usuario);
+        _email = usuario.FindFirst(ClaimTypes.Email)?.Value ?? "—";
+        _perfis = string.Join(", ", usuario.FindAll(ClaimTypes.Role).Select(perfil => perfil.Value));
+        _administrador = usuario.IsInRole("Administrador");
+    }
+
+    private async Task AlterarSenhaAsync()
+    {
+        if (!PodeAlterarSenha)
+            return;
+
+        _alterandoSenha = true;
+
+        try
+        {
+            var resposta = await ContaClient.AlterarSenhaAsync(
+                new AlterarPropriaSenhaRequest(_senhaAtual, _novaSenha));
+
+            _senhaAtual = _novaSenha = _confirmacao = string.Empty;
+            Snackbar.Add(resposta.Mensagem, Severity.Success);
+        }
+        catch (Refit.ApiException exception)
+        {
+            Snackbar.Add(await MensagemDeErroAsync(exception), Severity.Error);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível acessar a API. Tente novamente.", Severity.Error);
+        }
+        finally
+        {
+            _alterandoSenha = false;
+        }
+    }
+
+    // A API devolve no corpo o motivo da recusa (senha atual incorreta, política de senha).
+    private static async Task<string> MensagemDeErroAsync(Refit.ApiException exception)
+    {
+        if (exception.StatusCode == HttpStatusCode.Unauthorized)
+            return "Sua sessão expirou. Entre novamente.";
+
+        try
+        {
+            var corpo = await exception.GetContentAsAsync<InvoiSys.Application.Common.Responses.ApiResponse<object>>();
+
+            if (!string.IsNullOrWhiteSpace(corpo?.Mensagem))
+                return corpo.Mensagem;
+        }
+        catch (Exception)
+        {
+            // Corpo ausente ou fora do formato esperado: usa a mensagem padrão.
+        }
+
+        return "Não foi possível alterar a senha.";
+    }
+}

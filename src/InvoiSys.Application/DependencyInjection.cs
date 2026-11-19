@@ -21,6 +21,7 @@ using InvoiSys.Application.Fontes.ListarFontes;
 using InvoiSys.Application.Historico.ExportarHistorico;
 using InvoiSys.Application.Historico.ListarHistorico;
 using InvoiSys.Application.Fontes.ObterResumo;
+using InvoiSys.Application.Usuarios.AlterarPropriaSenha;
 using InvoiSys.Application.Usuarios.AlterarStatusUsuario;
 using InvoiSys.Application.Usuarios.CriarUsuario;
 using InvoiSys.Application.Usuarios.ListarUsuarios;
@@ -70,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<IListarUsuariosUseCase, ListarUsuariosUseCase>();
         services.AddScoped<IAlterarStatusUsuarioUseCase, AlterarStatusUsuarioUseCase>();
         services.AddScoped<IRedefinirSenhaUseCase, RedefinirSenhaUseCase>();
+        services.AddScoped<IAlterarPropriaSenhaUseCase, AlterarPropriaSenhaUseCase>();
 
         return services;
     }

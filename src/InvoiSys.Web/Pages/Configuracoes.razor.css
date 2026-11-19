@@ -1,0 +1,15 @@
+.configuracoes-page { display:flex; flex-direction:column; gap:22px; padding-bottom:4px; }
+.configuracoes-title { color:#141c29; font-size:28px; font-weight:700; line-height:1.2; }
+.configuracoes-header p { color:#5e697a; margin-top:4px; }
+.configuracoes-page ::deep .configuracoes-tabs { background:#fff; border:1px solid #e3e8ed; border-radius:12px; overflow:hidden; }
+.configuracoes-panel { padding:24px; }
+.conta-card { align-items:flex-start; display:flex; gap:20px; }
+.conta-avatar { align-items:center; background:#e8f1ff; border-radius:50%; color:#1f5fbf; display:flex; flex:0 0 56px; font-size:20px; font-weight:700; height:56px; justify-content:center; }
+.conta-dados { display:grid; gap:14px; margin:0; }
+.conta-dados div { display:grid; gap:2px; }
+.conta-dados dt { color:#5e697a; font-size:12px; }
+.conta-dados dd { color:#141c29; font-size:14px; font-weight:600; margin:0; overflow-wrap:anywhere; }
+.conta-senha { border-top:1px solid #e3e8ed; display:grid; gap:12px; margin-top:24px; max-width:420px; padding-top:24px; }
+.conta-senha h2 { color:#141c29; font-size:16px; font-weight:700; margin:0; }
+.conta-senha p { color:#5e697a; font-size:12px; margin:0; }
+.conta-senha ::deep .conta-senha-botao { justify-self:start; margin-top:4px; }
