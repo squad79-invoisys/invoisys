@@ -10,3 +10,7 @@ coverage
 .env.*
 README.md
 docs
+tests
+deploy
+**/TestResults
+**/*.user

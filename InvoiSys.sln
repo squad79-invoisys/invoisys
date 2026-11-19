@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.10.12224.181 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvoiSys.Domain", "src\InvoiSys.Domain\InvoiSys.Domain.csproj", "{633ECD9C-E275-53A6-88A5-6C43ADC075AC}"
 EndProject
@@ -21,6 +21,33 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvoiSys.UnitTests", "tests\InvoiSys.UnitTests\InvoiSys.UnitTests.csproj", "{3D2E9BBE-BC26-5449-933C-18191E3703CA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvoiSys.IntegrationTests", "tests\InvoiSys.IntegrationTests\InvoiSys.IntegrationTests.csproj", "{3CDA3BBA-3261-5DAF-920C-BCCC4DB54778}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A196F802-E841-49A0-907F-9ABF7DE02C66}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D9E50079-3869-4A87-8C27-A0EA5DF0278F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "deploy", "deploy", "{A66F063E-0959-4947-8AA9-4980B64B25FD}"
+	ProjectSection(SolutionItems) = preProject
+		deploy\compose.yaml = deploy\compose.yaml
+		deploy\.env.example = deploy\.env.example
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "production", "production", "{957C5047-9207-432B-A678-A0B733B3B56C}"
+	ProjectSection(SolutionItems) = preProject
+		deploy\production\compose.yaml = deploy\production\compose.yaml
+		deploy\production\Caddyfile = deploy\production\Caddyfile
+		deploy\production\.env.example = deploy\production\.env.example
+		deploy\production\update.sh = deploy\production\update.sh
+		deploy\production\README.md = deploy\production\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "aspire", "aspire", "{907EA599-188C-40FC-8CC6-4CEFD4714B77}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{59B60A29-89E6-4935-9EC1-E34A87B7F5F2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "frontend", "frontend", "{4708BAB1-E1F4-48BF-83A0-A17EE0069610}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{367C0E21-C7AF-4911-8D5F-26C564E85B9E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,5 +95,28 @@ Global
 		{3CDA3BBA-3261-5DAF-920C-BCCC4DB54778}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3CDA3BBA-3261-5DAF-920C-BCCC4DB54778}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3CDA3BBA-3261-5DAF-920C-BCCC4DB54778}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{907EA599-188C-40FC-8CC6-4CEFD4714B77} = {A196F802-E841-49A0-907F-9ABF7DE02C66}
+		{59B60A29-89E6-4935-9EC1-E34A87B7F5F2} = {A196F802-E841-49A0-907F-9ABF7DE02C66}
+		{4708BAB1-E1F4-48BF-83A0-A17EE0069610} = {A196F802-E841-49A0-907F-9ABF7DE02C66}
+		{367C0E21-C7AF-4911-8D5F-26C564E85B9E} = {59B60A29-89E6-4935-9EC1-E34A87B7F5F2}
+		{957C5047-9207-432B-A678-A0B733B3B56C} = {A66F063E-0959-4947-8AA9-4980B64B25FD}
+		{44187A6B-A5D8-5E89-916A-38431C7A8FD8} = {907EA599-188C-40FC-8CC6-4CEFD4714B77}
+		{AC5F92C6-3AB0-57B9-AF1F-F18CA9969E6C} = {907EA599-188C-40FC-8CC6-4CEFD4714B77}
+		{4621188B-E905-58C7-9CDD-0F850B2312D7} = {59B60A29-89E6-4935-9EC1-E34A87B7F5F2}
+		{9A29FF4F-B111-57DB-9990-2460A2601381} = {367C0E21-C7AF-4911-8D5F-26C564E85B9E}
+		{69DC9E68-A2E8-5B13-8858-ECE1F0E58A45} = {367C0E21-C7AF-4911-8D5F-26C564E85B9E}
+		{633ECD9C-E275-53A6-88A5-6C43ADC075AC} = {367C0E21-C7AF-4911-8D5F-26C564E85B9E}
+		{27769D42-F626-5542-92DC-A5473169818B} = {367C0E21-C7AF-4911-8D5F-26C564E85B9E}
+		{3400D90E-152F-5855-8834-3A2ADB671D7B} = {4708BAB1-E1F4-48BF-83A0-A17EE0069610}
+		{3D2E9BBE-BC26-5449-933C-18191E3703CA} = {D9E50079-3869-4A87-8C27-A0EA5DF0278F}
+		{3CDA3BBA-3261-5DAF-920C-BCCC4DB54778} = {D9E50079-3869-4A87-8C27-A0EA5DF0278F}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {11C45399-A35C-428D-AF20-A6A0B2F464A9}
 	EndGlobalSection
 EndGlobal

@@ -3,12 +3,15 @@ using InvoiSys.Application.Autenticacao.Login;
 using InvoiSys.Application.Autenticacao.Logout;
 using InvoiSys.Application.Autenticacao.Refresh;
 using InvoiSys.Application.Coletas.ConsultarColeta;
+using InvoiSys.Application.Coletas.ExecutarColeta;
 using InvoiSys.Application.Coletas.ExecutarColetaManual;
 using InvoiSys.Application.Coletas.ListarColetas;
 using InvoiSys.Application.Common.Auditoria;
+using InvoiSys.Application.Coletas.ObterResumo;
 using InvoiSys.Application.Dashboard.ObterResumo;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
+using InvoiSys.Application.Documentos.ObterResumo;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
@@ -17,11 +20,13 @@ using InvoiSys.Application.Fontes.ImportarFontes;
 using InvoiSys.Application.Fontes.ListarFontes;
 using InvoiSys.Application.Historico.ExportarHistorico;
 using InvoiSys.Application.Historico.ListarHistorico;
+using InvoiSys.Application.Fontes.ObterResumo;
 using InvoiSys.Application.Usuarios.AlterarStatusUsuario;
 using InvoiSys.Application.Usuarios.CriarUsuario;
 using InvoiSys.Application.Usuarios.ListarUsuarios;
 using InvoiSys.Application.Usuarios.RedefinirSenha;
 using Microsoft.Extensions.DependencyInjection;
+using InvoiSys.Application.Coletas;
 
 namespace InvoiSys.Application;
 
@@ -37,15 +42,20 @@ public static class DependencyInjection
         services.AddScoped<IImportarFontesUseCase, ImportarFontesUseCase>();
         services.AddScoped<IConsultarFonteUseCase, ConsultarFonteUseCase>();
         services.AddScoped<IListarFontesUseCase, ListarFontesUseCase>();
+        services.AddScoped<IObterResumoFontesUseCase, ObterResumoFontesUseCase>();
         services.AddScoped<IAtualizarFonteUseCase, AtualizarFonteUseCase>();
         services.AddScoped<IAlterarStatusFonteUseCase, AlterarStatusFonteUseCase>();
 
         services.AddScoped<IExecutarColetaManualUseCase, ExecutarColetaManualUseCase>();
+        services.AddSingleton<ColetaMetrics>();
+        services.AddScoped<IColetaExecutor, ColetaExecutor>();
         services.AddScoped<IConsultarColetaUseCase, ConsultarColetaUseCase>();
         services.AddScoped<IListarColetasUseCase, ListarColetasUseCase>();
+        services.AddScoped<IObterResumoColetasUseCase, ObterResumoColetasUseCase>();
 
         services.AddScoped<IConsultarDocumentoUseCase, ConsultarDocumentoUseCase>();
         services.AddScoped<IListarDocumentosUseCase, ListarDocumentosUseCase>();
+        services.AddScoped<IObterResumoDocumentosUseCase, ObterResumoDocumentosUseCase>();
 
         services.AddScoped<IObterResumoDashboardUseCase, ObterResumoDashboardUseCase>();
 
