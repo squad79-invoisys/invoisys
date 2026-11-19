@@ -7,6 +7,7 @@ using InvoiSys.Application.Fontes.ConsultarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
 using InvoiSys.Application.Fontes.ImportarFontes;
 using InvoiSys.Application.Fontes.ListarFontes;
+using InvoiSys.Application.Fontes.ObterResumo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -20,6 +21,7 @@ public sealed class FontesController(
     ICriarFonteUseCase criarFonteUseCase,
     IConsultarFonteUseCase consultarFonteUseCase,
     IListarFontesUseCase listarFontesUseCase,
+    IObterResumoFontesUseCase obterResumoFontesUseCase,
     IAtualizarFonteUseCase atualizarFonteUseCase,
     IAlterarStatusFonteUseCase alterarStatusFonteUseCase,
     IImportarFontesUseCase importarFontesUseCase) : ControllerBase
@@ -142,6 +144,24 @@ public sealed class FontesController(
         return Ok(ApiResponse<PagedResponse<FonteResponse>>.Ok(
             "Fontes listadas com sucesso.",
             response));
+    }
+
+    [HttpGet("resumo")]
+    [SwaggerOperation(
+        Summary = "Obtém o resumo das fontes",
+        Description = "Retorna os totais globais de fontes ativas e inativas.",
+        OperationId = "ObterResumoFontes",
+        Tags = ["Fontes"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Resumo obtido com sucesso.",
+        typeof(ApiResponse<ResumoFontesResponse>))]
+    public async Task<IActionResult> ObterResumoAsync(CancellationToken cancellationToken)
+    {
+        var response = await obterResumoFontesUseCase.Execute(cancellationToken);
+
+        return Ok(ApiResponse<ResumoFontesResponse>.Ok(
+            "Resumo obtido com sucesso.", response));
     }
 
     [HttpPut("{id:guid}")]

@@ -68,6 +68,7 @@ public sealed class ExecucaoColeta
 
         Status = StatusExecucaoColeta.Falhou;
         Fim = DateTimeOffset.UtcNow;
+        QuantidadeDocumentos = 0;
         MensagemErro = mensagem.Trim();
     }
 }

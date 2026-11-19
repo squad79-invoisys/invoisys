@@ -52,4 +52,16 @@ public sealed class ExecucaoColetaTests
 
         act.Should().Throw<DomainException>();
     }
+
+    [Fact]
+    public void RegistrarFalha_DeveZerarQuantidadeDeDocumentos()
+    {
+        var execucao = ExecucaoColeta.IniciarAutomatica(Guid.NewGuid());
+        execucao.Concluir(4);
+
+        execucao.RegistrarFalha("Falha de persistência.");
+
+        execucao.Status.Should().Be(StatusExecucaoColeta.Falhou);
+        execucao.QuantidadeDocumentos.Should().Be(0);
+    }
 }

@@ -91,7 +91,8 @@ public sealed class ListarDocumentosUseCaseTests
         public DateTimeOffset? DataInicio { get; private set; }
         public DateTimeOffset? DataFim { get; private set; }
 
-        public Task AdicionarVariosAsync(IEnumerable<Documento> documentos, CancellationToken token) => Task.CompletedTask;
+        public Task<int> InserirNovosAsync(IReadOnlyCollection<Documento> documentos, CancellationToken token) =>
+            Task.FromResult(documentos.Count);
         public Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken token) => Task.FromResult<Documento?>(null);
 
         public Task<(IReadOnlyList<Documento> Itens, int Total)> ListarAsync(int pagina, int tamanhoPagina,

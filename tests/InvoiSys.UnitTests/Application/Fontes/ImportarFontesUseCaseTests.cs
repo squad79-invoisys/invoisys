@@ -381,6 +381,11 @@ public sealed class ImportarFontesUseCaseTests
             string? busca,
             CancellationToken cancellationToken) =>
             Task.FromResult<(IReadOnlyList<Fonte>, int)>(([], 0));
+
+        public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(
+            DateTimeOffset agoraUtc,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 
     private sealed class UnitOfWorkStub : IUnitOfWork
@@ -392,6 +397,10 @@ public sealed class ImportarFontesUseCaseTests
             Commits++;
             return Task.FromResult(1);
         }
+
+        public Task BeginTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task CommitTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class AuditoriaServiceStub : IAuditoriaService

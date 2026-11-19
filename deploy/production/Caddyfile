@@ -1,0 +1,30 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# A API e a tela vivem na mesma origem. Isso evita CORS e permite que o
+	# cookie de refresh token seja enviado normalmente pelo navegador.
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	# Health check da API, util para monitoramento externo.
+	handle /health {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

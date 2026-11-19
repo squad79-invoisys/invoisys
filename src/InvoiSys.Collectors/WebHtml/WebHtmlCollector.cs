@@ -34,20 +34,25 @@ public sealed partial class WebHtmlCollector(
         var parser = new HtmlParser();
         using var document = await parser.ParseDocumentAsync(stream, cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var titulo = ExtrairTitulo(document);
+        cancellationToken.ThrowIfCancellationRequested();
         var dataPublicacao = ExtrairDataPublicacao(document);
+        cancellationToken.ThrowIfCancellationRequested();
         var metadados = ExtrairMetadados(document);
 
-        DescartarElementosSemConteudo(document);
+        DescartarElementosSemConteudo(document, cancellationToken);
 
         var conteudo = string.IsNullOrWhiteSpace(seletorConteudo)
-            ? ExtrairConteudo(document)
-            : ExtrairConteudoPorSeletor(document, seletorConteudo.Trim());
+            ? ExtrairConteudo(document, cancellationToken)
+            : ExtrairConteudoPorSeletor(document, seletorConteudo.Trim(), cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
         return [CriarDocumento(titulo, url, dataPublicacao, conteudo, metadados)];
     }
 
-    private static string ExtrairConteudoPorSeletor(IDocument document, string seletor)
+    private static string ExtrairConteudoPorSeletor(
+        IDocument document, string seletor, CancellationToken cancellationToken)
     {
         IHtmlCollection<IElement> elementos;
 
@@ -67,7 +72,14 @@ public sealed partial class WebHtmlCollector(
                 $"O seletor de conteúdo \"{seletor}\" não encontrou nenhum elemento na página.");
         }
 
-        var texto = Normalizar(string.Join(" ", elementos.Select(e => e.TextContent)));
+        var textos = new List<string>(elementos.Length);
+        foreach (var elemento in elementos)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            textos.Add(elemento.TextContent);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        var texto = Normalizar(string.Join(" ", textos), cancellationToken);
 
         if (string.IsNullOrWhiteSpace(texto))
         {
@@ -88,18 +100,23 @@ public sealed partial class WebHtmlCollector(
         return string.IsNullOrWhiteSpace(titulo) ? "Sem título" : titulo;
     }
 
-    private static void DescartarElementosSemConteudo(IDocument document)
+    private static void DescartarElementosSemConteudo(
+        IDocument document, CancellationToken cancellationToken)
     {
         foreach (var elemento in document.QuerySelectorAll(SeletoresDescartados))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             elemento.Remove();
+        }
     }
 
-    private static string? ExtrairConteudo(IDocument document)
+    private static string? ExtrairConteudo(IDocument document, CancellationToken cancellationToken)
     {
         foreach (var seletor in SeletoresConteudo)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var elemento = document.QuerySelector(seletor);
-            var texto = Normalizar(elemento?.TextContent);
+            var texto = Normalizar(elemento?.TextContent, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(texto))
                 return texto;
@@ -163,10 +180,15 @@ public sealed partial class WebHtmlCollector(
             hash);
     }
 
-    private static string? Normalizar(string? valor) =>
-        string.IsNullOrWhiteSpace(valor)
+    private static string? Normalizar(string? valor, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resultado = string.IsNullOrWhiteSpace(valor)
             ? null
             : EspacosRegex().Replace(valor, " ").Trim();
+        cancellationToken.ThrowIfCancellationRequested();
+        return resultado;
+    }
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex EspacosRegex();
