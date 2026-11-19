@@ -61,6 +61,12 @@ builder.Services
     .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
 
 builder.Services
+    .AddRefitClient<IContaClient>()
+    .ConfigureHttpClient(client =>
+        client.BaseAddress = apiBaseUrl)
+    .AddHttpMessageHandler<AuthorizedHttpMessageHandler>();
+
+builder.Services
     .AddRefitClient<IUsuariosClient>()
     .ConfigureHttpClient(client =>
         client.BaseAddress = apiBaseUrl)
