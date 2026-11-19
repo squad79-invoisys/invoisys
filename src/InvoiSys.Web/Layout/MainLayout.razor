@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject AuthClient AuthClient
 @inject NavigationManager NavigationManager
 
@@ -7,17 +8,19 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="app-shell">
-    <aside class="app-sidebar">
+<div class="app-shell @(_menuRecolhido ? "menu-recolhido" : null) @(_menuAberto ? "menu-aberto" : null)">
+    <aside class="app-sidebar" id="menu-lateral">
         <NavMenu />
     </aside>
 
+    @* No celular o menu abre por cima da tela; tocar fora fecha. *@
+    <div class="app-sidebar-fundo" @onclick="FecharMenu"></div>
+
     <header class="app-topbar">
-        <MudIcon Icon="@Icons.Material.Outlined.Menu" Size="Size.Small" />
-        <MudText Typo="Typo.subtitle1">Fontes</MudText>
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Size="Size.Small" OnClick="AlternarMenu"
+                       aria-label="Abrir ou recolher o menu" aria-controls="menu-lateral" />
+        <MudText Typo="Typo.subtitle1">@_titulo</MudText>
         <div class="topbar-actions">
-            <MudIconButton Icon="@Icons.Material.Outlined.Search" Size="Size.Small" aria-label="Pesquisar" />
-            <MudIconButton Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-label="Ajuda" />
             <AuthorizeView>
                 <Authorized>
                     @{
@@ -46,7 +49,58 @@
 </div>
 
 @code {
+    // Mesmos nomes do menu lateral, pelo primeiro trecho da rota.
+    private static readonly Dictionary<string, string> Titulos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [""] = "Dashboard",
+        ["fontes"] = "Fontes",
+        ["coletas"] = "Coletas",
+        ["documentos"] = "Documentos",
+        ["historico"] = "Histórico",
+        ["configuracoes"] = "Configurações",
+        ["usuarios"] = "Usuários"
+    };
+
     private bool _saindo;
+    private string _titulo = string.Empty;
+
+    // O mesmo botão recolhe o menu no desktop e abre por cima da tela no celular;
+    // o CSS só aplica cada estado na largura correspondente.
+    private bool _menuRecolhido;
+    private bool _menuAberto;
+
+    protected override void OnInitialized()
+    {
+        _titulo = TituloDaRota(NavigationManager.Uri);
+        NavigationManager.LocationChanged += AoMudarDeTela;
+    }
+
+    private void AoMudarDeTela(object? sender, LocationChangedEventArgs args)
+    {
+        _titulo = TituloDaRota(args.Location);
+
+        // No celular o menu cobre o conteúdo, então fecha ao trocar de tela.
+        _menuAberto = false;
+        StateHasChanged();
+    }
+
+    private string TituloDaRota(string uri)
+    {
+        var caminho = NavigationManager.ToBaseRelativePath(uri).Split('?', '#')[0];
+        var primeiroTrecho = caminho.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+        return Titulos.GetValueOrDefault(primeiroTrecho, string.Empty);
+    }
+
+    private void AlternarMenu()
+    {
+        _menuRecolhido = !_menuRecolhido;
+        _menuAberto = !_menuAberto;
+    }
+
+    private void FecharMenu() => _menuAberto = false;
+
+    public void Dispose() => NavigationManager.LocationChanged -= AoMudarDeTela;
 
     private async Task SairAsync()
     {
