@@ -86,5 +86,9 @@ public sealed class LoginUseCaseAuditoriaTests
             Commits++;
             return Task.FromResult(1);
         }
+
+        public Task BeginTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task CommitTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

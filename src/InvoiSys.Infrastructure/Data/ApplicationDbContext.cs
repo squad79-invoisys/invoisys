@@ -1,4 +1,5 @@
 using InvoiSys.Domain.Entities;
+using InvoiSys.Infrastructure.Data.Entities;
 using InvoiSys.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -11,6 +12,7 @@ public sealed class ApplicationDbContext(
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Fonte> Fontes => Set<Fonte>();
+    internal DbSet<FonteColetaLease> FontesColetaLease => Set<FonteColetaLease>();
     public DbSet<ExecucaoColeta> ExecucoesColeta => Set<ExecucaoColeta>();
     public DbSet<Documento> Documentos => Set<Documento>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

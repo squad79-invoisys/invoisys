@@ -10,6 +10,7 @@ using InvoiSys.Application.Fontes.ConsultarFonte;
 using InvoiSys.Application.Fontes.CriarFonte;
 using InvoiSys.Application.Fontes.ImportarFontes;
 using InvoiSys.Application.Fontes.ListarFontes;
+using InvoiSys.Application.Fontes.ObterResumo;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -64,6 +65,7 @@ public sealed class FontesControllerImportarTests
             new NaoUsado(),
             new NaoUsado(),
             new NaoUsado(),
+            new NaoUsado(),
             importar);
 
     private sealed class ImportarFontesUseCaseStub(
@@ -87,6 +89,7 @@ public sealed class FontesControllerImportarTests
         ICriarFonteUseCase,
         IConsultarFonteUseCase,
         IListarFontesUseCase,
+        IObterResumoFontesUseCase,
         IAtualizarFonteUseCase,
         IAlterarStatusFonteUseCase
     {
@@ -106,6 +109,9 @@ public sealed class FontesControllerImportarTests
             throw new NotSupportedException();
 
         public Task Execute(Guid id, bool ativo, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<ResumoFontesResponse> Execute(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
     }
 }

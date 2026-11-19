@@ -39,7 +39,8 @@ public sealed class ConsultarDocumentoUseCaseTests
 
     private sealed class DocumentosStub(Documento? documento) : IDocumentoRepository
     {
-        public Task AdicionarVariosAsync(IEnumerable<Documento> documentos, CancellationToken token) => Task.CompletedTask;
+        public Task<int> InserirNovosAsync(IReadOnlyCollection<Documento> documentos, CancellationToken token) =>
+            Task.FromResult(documentos.Count);
 
         public Task<Documento?> ObterPorIdAsync(Guid id, CancellationToken token) =>
             Task.FromResult(documento?.Id == id ? documento : null);
