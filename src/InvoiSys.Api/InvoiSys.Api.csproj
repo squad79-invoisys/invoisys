@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>1a9318c9-dd9f-47c8-a840-092e5df54b71</UserSecretsId>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\InvoiSys.Application\InvoiSys.Application.csproj" />
     <ProjectReference Include="..\InvoiSys.Collectors\InvoiSys.Collectors.csproj" />

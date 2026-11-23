@@ -5,6 +5,7 @@ using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Documentos.Anexos;
 using InvoiSys.Domain.Entities;
 using InvoiSys.Domain.Repositories;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvoiSys.UnitTests.Application.Documentos;
 
@@ -198,7 +199,7 @@ public sealed class AnexosDocumentoTests
         var useCase = new BaixarAnexoDocumentoUseCase(
             new DocumentosStub(documento),
             new AnexoCatalogo(new DescobridorFake(new AnexoDescoberto(UrlDownload, "Termo", null))),
-            downloader);
+            CriarArquivador(downloader));
 
         await using var arquivo = await useCase.Execute(
             documento.Id,
@@ -218,7 +219,7 @@ public sealed class AnexosDocumentoTests
         var useCase = new BaixarAnexoDocumentoUseCase(
             new DocumentosStub(documento),
             new AnexoCatalogo(new DescobridorFake(new AnexoDescoberto(UrlDownload, "Termo", null))),
-            downloader);
+            CriarArquivador(downloader));
 
         var act = () => useCase.Execute(
             documento.Id,
@@ -235,7 +236,7 @@ public sealed class AnexosDocumentoTests
         var useCase = new BaixarAnexoDocumentoUseCase(
             new DocumentosStub(null),
             new AnexoCatalogo(new DescobridorFake()),
-            new DownloaderFake());
+            CriarArquivador(new DownloaderFake()));
 
         var act = () => useCase.Execute(
             Guid.NewGuid(), "0123456789abcdef", TestContext.Current.CancellationToken);
@@ -246,6 +247,38 @@ public sealed class AnexosDocumentoTests
     private static Documento CriarDocumento(string? metadados = null) =>
         new(Guid.NewGuid(), "Termo de apostilamento", "https://www.gov.br/receita/termo-no-01.pdf/view",
             "RSS", "www.gov.br", "Legislação", null, null, metadados, "hash");
+
+    // Armazenamento desligado: o arquivador cai direto no downloader, que é o
+    // comportamento destes testes, voltados ao catálogo e à autorização.
+    private static ArquivadorAnexos CriarArquivador(IAnexoDownloader downloader) =>
+        new(downloader,
+            new ArmazenamentoDesligadoFake(),
+            new AnexosArquivadosFake(),
+            NullLogger<ArquivadorAnexos>.Instance);
+
+    private sealed class ArmazenamentoDesligadoFake : IArmazenamentoAnexos
+    {
+        public bool Habilitado => false;
+
+        public Task<bool> ExisteAsync(string chave, CancellationToken cancellationToken) =>
+            Task.FromResult(false);
+
+        public Task GravarAsync(
+            string chave, Stream conteudo, string tipoConteudo, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Stream?> AbrirAsync(string chave, CancellationToken cancellationToken) =>
+            Task.FromResult<Stream?>(null);
+    }
+
+    private sealed class AnexosArquivadosFake : IAnexoArquivadoRepository
+    {
+        public Task<AnexoArquivado?> ObterPorUrlAsync(string url, CancellationToken cancellationToken) =>
+            Task.FromResult<AnexoArquivado?>(null);
+
+        public Task<bool> AdicionarAsync(AnexoArquivado anexo, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+    }
 
     private sealed class DescobridorFake(
         bool completa,

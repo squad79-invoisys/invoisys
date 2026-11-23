@@ -48,7 +48,8 @@ public sealed class AnexoDownloader(HttpClient httpClient) : IAnexoDownloader
             var fluxo = await resposta.Content.ReadAsStreamAsync(cancellationToken);
             var limitado = new StreamLimitado(fluxo, resposta, TamanhoMaximoBytes, PrazoTotal);
 
-            return new ArquivoAnexo(limitado, tipo, nome);
+            return new ArquivoAnexo(
+                limitado, tipo, nome, resposta.Content.Headers.ContentLength);
         }
         catch (Exception exception) when (
             exception is HttpRequestException or IOException ||

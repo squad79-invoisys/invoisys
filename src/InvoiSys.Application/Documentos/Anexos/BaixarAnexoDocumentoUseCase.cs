@@ -7,7 +7,7 @@ namespace InvoiSys.Application.Documentos.Anexos;
 public sealed class BaixarAnexoDocumentoUseCase(
     IDocumentoRepository documentoRepository,
     AnexoCatalogo catalogo,
-    IAnexoDownloader downloader) : IBaixarAnexoDocumentoUseCase
+    ArquivadorAnexos arquivador) : IBaixarAnexoDocumentoUseCase
 {
     public async Task<ArquivoAnexo> Execute(
         Guid documentoId,
@@ -25,6 +25,6 @@ public sealed class BaixarAnexoDocumentoUseCase(
             ?? throw new NotFoundException(
                 "Anexo não encontrado neste documento. Atualize a lista de anexos.");
 
-        return await downloader.BaixarAsync(anexo.Url, anexo.NomeArquivo, cancellationToken);
+        return await arquivador.ObterAsync(anexo.Url, anexo.NomeArquivo, cancellationToken);
     }
 }

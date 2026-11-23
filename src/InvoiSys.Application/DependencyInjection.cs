@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IListarDocumentosUseCase, ListarDocumentosUseCase>();
         services.AddScoped<IObterResumoDocumentosUseCase, ObterResumoDocumentosUseCase>();
         services.AddScoped<AnexoCatalogo>();
+        services.AddScoped<ArquivadorAnexos>();
         services.AddScoped<IListarAnexosDocumentoUseCase, ListarAnexosDocumentoUseCase>();
         services.AddScoped<IBaixarAnexoDocumentoUseCase, BaixarAnexoDocumentoUseCase>();
 

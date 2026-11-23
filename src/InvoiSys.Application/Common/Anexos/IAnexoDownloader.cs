@@ -6,11 +6,15 @@ namespace InvoiSys.Application.Common.Anexos;
 public sealed class ArquivoAnexo(
     Stream conteudo,
     string tipoConteudo,
-    string nomeArquivo) : IAsyncDisposable
+    string nomeArquivo,
+    long? tamanho = null) : IAsyncDisposable
 {
     public Stream Conteudo { get; } = conteudo;
     public string TipoConteudo { get; } = tipoConteudo;
     public string NomeArquivo { get; } = nomeArquivo;
+
+    /// <summary>Nulo quando a origem não informou o tamanho.</summary>
+    public long? Tamanho { get; } = tamanho;
 
     public ValueTask DisposeAsync() => Conteudo.DisposeAsync();
 }

@@ -40,6 +40,11 @@ services:
       BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:?defina BOOTSTRAP_ADMIN_PASSWORD no .env}
       Database__MigrateOnStartup: "true"
       ColetaAutomatica__Enabled: "${COLETA_AUTOMATICA:-true}"
+      # O AccountId não fica no appsettings para não ir ao repositório.
+      # O Bucket, que não identifica a conta, continua lá.
+      Anexos__AccountId: ${R2_ACCOUNT_ID:-}
+      Anexos__AccessKeyId: ${R2_ACCESS_KEY_ID:-}
+      Anexos__SecretAccessKey: ${R2_SECRET_ACCESS_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

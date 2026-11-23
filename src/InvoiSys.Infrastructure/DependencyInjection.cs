@@ -1,6 +1,8 @@
+using InvoiSys.Application.Common.Anexos;
 using InvoiSys.Application.Common.Authentication;
 using InvoiSys.Application.Common.Coletas;
 using InvoiSys.Domain.Repositories;
+using InvoiSys.Infrastructure.Anexos;
 using InvoiSys.Infrastructure.Data;
 using InvoiSys.Infrastructure.Identity;
 using InvoiSys.Infrastructure.Repositories;
@@ -47,11 +49,16 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(
             configuration.GetSection(JwtOptions.SectionName));
 
+        services.Configure<AnexosOptions>(
+            configuration.GetSection(AnexosOptions.SectionName));
+        services.AddSingleton<IArmazenamentoAnexos, R2ArmazenamentoAnexos>();
+
         services.AddScoped<IFonteRepository, FonteRepository>();
         services.AddScoped<IExecucaoColetaRepository, ExecucaoColetaRepository>();
         services.AddScoped<IDocumentoRepository, DocumentoRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IRegistroAuditoriaRepository, RegistroAuditoriaRepository>();
+        services.AddScoped<IAnexoArquivadoRepository, AnexoArquivadoRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IFonteColetaLock, PostgresFonteColetaLock>();
 
