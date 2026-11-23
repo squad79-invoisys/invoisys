@@ -239,6 +239,11 @@
                     }
                 </div>
 
+                <div class="details-section">
+                    <h3>Anexos</h3>
+                    <AnexosDocumento @key="doc.Id" DocumentoId="doc.Id" />
+                </div>
+
                 @if (_metadados.Count > 0)
                 {
                     <div class="details-section">
@@ -773,6 +778,10 @@
 
             foreach (var propriedade in documento.RootElement.EnumerateObject())
             {
+                // Os anexos têm seção própria; aqui seriam só JSON bruto.
+                if (string.Equals(propriedade.Name, "anexos", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 var valor = propriedade.Value.ValueKind switch
                 {
                     JsonValueKind.String => propriedade.Value.GetString(),

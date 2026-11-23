@@ -1,0 +1,11 @@
+.anexos-muted { align-items:center; color:#5e697a; display:flex; flex-wrap:wrap; font-size:var(--fs-body,14px); gap:8px; margin:0; }
+.anexos-lista { display:flex; flex-direction:column; gap:10px; list-style:none; margin:0; padding:0; }
+.anexo-item { align-items:center; border:1px solid #e3e8ed; border-radius:10px; display:grid; gap:10px; grid-template-columns:auto minmax(0,1fr); padding:10px 12px; }
+.anexo-icone { align-items:center; background:#e0f7e8; border-radius:8px; color:#0a9e40; display:flex; height:36px; justify-content:center; width:36px; }
+.anexo-info { min-width:0; }
+.anexo-info strong { color:#141c29; display:block; font-size:var(--fs-body,14px); font-weight:600; line-height:1.35; overflow:hidden; overflow-wrap:anywhere; text-overflow:ellipsis; }
+.anexo-info span { color:#5e697a; display:block; font-size:var(--fs-small,12px); margin-top:2px; }
+.anexo-acoes { display:flex; flex-wrap:wrap; gap:8px; grid-column:1 / -1; }
+.link-button { background:none; border:0; color:#0a9e40; cursor:pointer; font:inherit; font-weight:600; padding:0; }
+.link-button:hover { text-decoration:underline; }
+.link-button:focus-visible { outline:2px solid #0a9e40; outline-offset:2px; }
