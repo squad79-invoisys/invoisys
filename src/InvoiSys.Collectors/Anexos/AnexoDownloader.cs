@@ -78,10 +78,7 @@ public sealed class AnexoDownloader(HttpClient httpClient) : IAnexoDownloader
         if (string.IsNullOrWhiteSpace(nome))
             nome = "anexo";
 
-        var invalidos = Path.GetInvalidFileNameChars();
-        return new string(nome
-            .Select(caractere => invalidos.Contains(caractere) || char.IsControl(caractere) ? '_' : caractere)
-            .ToArray())
-            .Trim();
+        // Os pontos das bordas também saem, para o nome não começar com "..".
+        return TiposArquivo.TrocarCaracteresInvalidos(nome).Trim(' ', '.');
     }
 }

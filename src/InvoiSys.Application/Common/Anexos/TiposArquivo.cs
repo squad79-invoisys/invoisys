@@ -9,6 +9,23 @@ public static class TiposArquivo
 {
     public const string Binario = "application/octet-stream";
 
+    // Lista fixa em vez de Path.GetInvalidFileNameChars(): no Linux, onde a API
+    // roda, esse método devolve só '\0' e '/', e no Windows devolve 41 caracteres.
+    private static readonly char[] InvalidosEmNomeDeArquivo =
+        ['\0', '/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+
+    /// <summary>
+    /// Troca por "_" o que não pode ir num nome de arquivo, com o mesmo
+    /// resultado em qualquer sistema operacional.
+    /// </summary>
+    public static string TrocarCaracteresInvalidos(string nome) =>
+        new(nome
+            .Select(caractere =>
+                InvalidosEmNomeDeArquivo.Contains(caractere) || char.IsControl(caractere)
+                    ? '_'
+                    : caractere)
+            .ToArray());
+
     // Servidores como o Plone (gov.br) expõem o arquivo em ".../arquivo.pdf/@@download/file".
     private static readonly string[] SegmentosDeDownload = ["@@download", "@@display-file"];
 

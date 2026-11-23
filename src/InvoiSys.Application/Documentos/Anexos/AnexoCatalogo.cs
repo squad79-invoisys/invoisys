@@ -142,11 +142,7 @@ public sealed class AnexoCatalogo(IAnexoDescobridor descobridor)
 
     private static string MontarNomeArquivo(string nome, string? extensao)
     {
-        var invalidos = Path.GetInvalidFileNameChars();
-        var seguro = new string(nome
-            .Select(caractere => invalidos.Contains(caractere) || char.IsControl(caractere) ? '_' : caractere)
-            .ToArray())
-            .Trim(' ', '.');
+        var seguro = TiposArquivo.TrocarCaracteresInvalidos(nome).Trim(' ', '.');
 
         if (seguro.Length == 0)
             seguro = "anexo";
