@@ -1,5 +1,6 @@
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Documentos;
+using InvoiSys.Application.Documentos.Anexos;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
 using InvoiSys.Application.Documentos.ObterResumo;
@@ -15,7 +16,9 @@ namespace InvoiSys.Api.Controllers;
 public sealed class DocumentosController(
     IConsultarDocumentoUseCase consultarDocumentoUseCase,
     IListarDocumentosUseCase listarDocumentosUseCase,
-    IObterResumoDocumentosUseCase obterResumoDocumentosUseCase) : ControllerBase
+    IObterResumoDocumentosUseCase obterResumoDocumentosUseCase,
+    IListarAnexosDocumentoUseCase listarAnexosDocumentoUseCase,
+    IBaixarAnexoDocumentoUseCase baixarAnexoDocumentoUseCase) : ControllerBase
 {
     [HttpGet("resumo")]
     [SwaggerOperation(
@@ -57,6 +60,60 @@ public sealed class DocumentosController(
         return Ok(ApiResponse<DocumentoResponse>.Ok(
             "Documento consultado com sucesso.",
             response));
+    }
+
+    [HttpGet("{id:guid}/anexos")]
+    [SwaggerOperation(
+        Summary = "Lista os anexos de um documento",
+        Description = "Retorna os arquivos (PDF, planilhas, imagens etc.) declarados pela fonte ou " +
+                      "encontrados na página de origem do documento.",
+        OperationId = "ListarAnexosDocumento",
+        Tags = ["Documentos"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Anexos listados com sucesso.",
+        typeof(ApiResponse<AnexosDocumentoResponse>))]
+    [SwaggerResponse(
+        StatusCodes.Status404NotFound,
+        "Documento não encontrado.",
+        typeof(ApiResponse<object>))]
+    public async Task<IActionResult> ListarAnexosAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var response = await listarAnexosDocumentoUseCase.Execute(id, cancellationToken);
+
+        return Ok(ApiResponse<AnexosDocumentoResponse>.Ok(
+            "Anexos listados com sucesso.",
+            response));
+    }
+
+    [HttpGet("{id:guid}/anexos/{anexoId:regex(^[[0-9a-fA-F]]{{16}}$)}/arquivo")]
+    [SwaggerOperation(
+        Summary = "Baixa um anexo do documento",
+        Description = "Entrega o arquivo do anexo, buscado no site de origem. O identificador " +
+                      "vem da listagem de anexos do próprio documento.",
+        OperationId = "BaixarAnexoDocumento",
+        Tags = ["Documentos"])]
+    [SwaggerResponse(StatusCodes.Status200OK, "Conteúdo do arquivo.", typeof(FileStreamResult))]
+    [SwaggerResponse(
+        StatusCodes.Status404NotFound,
+        "Documento ou anexo não encontrado.",
+        typeof(ApiResponse<object>))]
+    public async Task<IActionResult> BaixarAnexoAsync(
+        Guid id,
+        string anexoId,
+        CancellationToken cancellationToken)
+    {
+        var arquivo = await baixarAnexoDocumentoUseCase.Execute(id, anexoId, cancellationToken);
+
+        // O tipo é definido pela API (nunca repassado do site de origem) e o
+        // nosniff impede que o navegador o reinterprete.
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+        // O FileStreamResult descarta o fluxo ao terminar, o que encerra a
+        // conexão com a origem.
+        return File(arquivo.Conteudo, arquivo.TipoConteudo, arquivo.NomeArquivo);
     }
 
     [HttpGet]

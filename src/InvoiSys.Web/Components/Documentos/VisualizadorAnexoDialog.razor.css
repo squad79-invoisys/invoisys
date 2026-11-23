@@ -1,0 +1,6 @@
+.visualizador-quadro { border:1px solid #e3e8ed; border-radius:8px; display:block; height:75vh; width:100%; }
+.visualizador-imagem { display:block; margin:0 auto; max-height:75vh; max-width:100%; object-fit:contain; }
+.visualizador-estado { align-items:center; color:#5e697a; display:flex; flex-direction:column; gap:12px; justify-content:center; min-height:200px; text-align:center; }
+.visualizador-baixar { color:#0a9e40; font-weight:600; margin-right:8px; text-decoration:none; }
+.visualizador-baixar:hover { text-decoration:underline; }
+.visualizador-baixar:focus-visible { outline:2px solid #0a9e40; outline-offset:2px; }

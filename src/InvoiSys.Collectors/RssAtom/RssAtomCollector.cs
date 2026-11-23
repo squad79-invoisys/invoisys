@@ -67,7 +67,8 @@ public sealed partial class RssAtomCollector(
                 var metadados = JsonSerializer.Serialize(new
                 {
                     guid = Valor(item, "guid"),
-                    categoria = Valor(item, "category")
+                    categoria = Valor(item, "category"),
+                    anexos = ExtrairAnexosRss(item, origem)
                 });
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -99,10 +100,7 @@ public sealed partial class RssAtomCollector(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var titulo = Valor(entry, "title") ?? "Sem título";
-                var link = entry.Elements()
-                    .FirstOrDefault(element => element.Name.LocalName == "link")
-                    ?.Attribute("href")
-                    ?.Value ?? origem;
+                var link = LinkPrincipalAtom(entry) ?? origem;
                 var conteudo = RemoverHtml(
                     Valor(entry, "content") ??
                     Valor(entry, "summary"), cancellationToken);
@@ -112,7 +110,8 @@ public sealed partial class RssAtomCollector(
                 var metadados = JsonSerializer.Serialize(new
                 {
                     id = Valor(entry, "id"),
-                    atualizadoEm = Valor(entry, "updated")
+                    atualizadoEm = Valor(entry, "updated"),
+                    anexos = ExtrairAnexosAtom(entry, origem)
                 });
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -126,6 +125,76 @@ public sealed partial class RssAtomCollector(
                     metadados);
             })
             .ToList();
+    }
+
+    // Arquivos que o próprio feed declara (enclosure), guardados nos metadados.
+    // Sem enclosure o resultado é nulo; os links da página são buscados depois,
+    // sob demanda, quando alguém abre o documento.
+    private static List<object>? ExtrairAnexosRss(XElement item, string origem)
+    {
+        var anexos = item.Elements()
+            .Where(element => string.Equals(
+                element.Name.LocalName, "enclosure", StringComparison.OrdinalIgnoreCase))
+            .Select(element => CriarAnexo(
+                element.Attribute("url")?.Value,
+                null,
+                element.Attribute("type")?.Value,
+                origem))
+            .OfType<object>()
+            .ToList();
+
+        return anexos.Count == 0 ? null : anexos;
+    }
+
+    private static List<object>? ExtrairAnexosAtom(XElement entry, string origem)
+    {
+        var anexos = entry.Elements()
+            .Where(element => element.Name.LocalName == "link" &&
+                string.Equals(
+                    element.Attribute("rel")?.Value,
+                    "enclosure",
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(element => CriarAnexo(
+                element.Attribute("href")?.Value,
+                element.Attribute("title")?.Value,
+                element.Attribute("type")?.Value,
+                origem))
+            .OfType<object>()
+            .ToList();
+
+        return anexos.Count == 0 ? null : anexos;
+    }
+
+    // O link principal é o "alternate" (ou sem rel); o enclosure é um anexo.
+    private static string? LinkPrincipalAtom(XElement entry)
+    {
+        var links = entry.Elements()
+            .Where(element => element.Name.LocalName == "link")
+            .ToList();
+
+        var principal = links.FirstOrDefault(link =>
+            string.IsNullOrWhiteSpace(link.Attribute("rel")?.Value) ||
+            string.Equals(link.Attribute("rel")!.Value, "alternate", StringComparison.OrdinalIgnoreCase));
+
+        return (principal ?? links.FirstOrDefault())?.Attribute("href")?.Value;
+    }
+
+    private static object? CriarAnexo(string? url, string? nome, string? tipo, string origem)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(origem, UriKind.Absolute, out var baseUri) ||
+            !Uri.TryCreate(baseUri, url.Trim(), out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return null;
+        }
+
+        return new
+        {
+            url = uri.AbsoluteUri,
+            nome = string.IsNullOrWhiteSpace(nome) ? null : nome.Trim(),
+            tipo = string.IsNullOrWhiteSpace(tipo) ? null : tipo.Trim()
+        };
     }
 
     private static CollectedDocument CriarDocumento(
