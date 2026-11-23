@@ -1,0 +1,229 @@
+@implements IDisposable
+@using System.Net
+@using InvoiSys.Application.Common.Responses
+@using InvoiSys.Application.Documentos.Anexos
+@inject IDocumentosClient DocumentosClient
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<div class="anexos" aria-live="polite" aria-busy="@_carregando">
+    @if (_carregando)
+    {
+        <p class="anexos-muted">
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+            <span>Procurando anexos...</span>
+        </p>
+    }
+    else if (_falhou)
+    {
+        <p class="anexos-muted">
+            Não foi possível buscar os anexos.
+            <button type="button" class="link-button" @onclick="CarregarAsync">Tentar novamente</button>
+        </p>
+    }
+    else if (_anexos.Count == 0)
+    {
+        <p class="anexos-muted">
+            @(_incompleta
+                ? "Não foi possível consultar a página de origem agora."
+                : "Nenhum anexo encontrado.")
+            @if (_incompleta)
+            {
+                <button type="button" class="link-button" @onclick="CarregarAsync">Tentar novamente</button>
+            }
+        </p>
+    }
+    else
+    {
+        <ul class="anexos-lista">
+            @foreach (var anexo in _anexos)
+            {
+                <li class="anexo-item">
+                    <span class="anexo-icone" aria-hidden="true">
+                        <MudIcon Icon="@IconeDe(anexo)" />
+                    </span>
+                    <div class="anexo-info">
+                        <strong title="@anexo.Nome">@anexo.Nome</strong>
+                        <span>@RotuloDe(anexo)</span>
+                    </div>
+                    <div class="anexo-acoes">
+                        @if (anexo.Visualizavel)
+                        {
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Outlined.Visibility"
+                                       Disabled="@_ocupados.Contains(anexo.Id)"
+                                       OnClick="() => VisualizarAsync(anexo)"
+                                       aria-label="@($"Visualizar {anexo.Nome}")">
+                                Visualizar
+                            </MudButton>
+                        }
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Outlined.Download"
+                                   Disabled="@_ocupados.Contains(anexo.Id)"
+                                   OnClick="() => BaixarAsync(anexo)"
+                                   aria-label="@($"Baixar {anexo.Nome}")">
+                            @(_ocupados.Contains(anexo.Id) ? "Baixando..." : "Baixar")
+                        </MudButton>
+                    </div>
+                </li>
+            }
+        </ul>
+
+        @if (_incompleta)
+        {
+            <p class="anexos-muted">A página de origem não respondeu por completo; a lista pode estar incompleta.</p>
+        }
+    }
+</div>
+
+@code {
+    // Evita uma busca por documento quando o usuário percorre a tabela rapidamente.
+    private static readonly TimeSpan AtrasoInicial = TimeSpan.FromMilliseconds(300);
+
+    [Parameter, EditorRequired] public Guid DocumentoId { get; set; }
+
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private readonly HashSet<string> _ocupados = [];
+    private IReadOnlyList<AnexoResponse> _anexos = [];
+    private bool _carregando = true;
+    private bool _falhou;
+    private bool _incompleta;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(AtrasoInicial, _cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await CarregarAsync();
+    }
+
+    private async Task CarregarAsync()
+    {
+        _carregando = true;
+        _falhou = false;
+
+        try
+        {
+            var resposta = await DocumentosClient.ListarAnexosAsync(
+                DocumentoId, _cancellationTokenSource.Token);
+
+            _anexos = resposta.Dados?.Itens ?? [];
+            _incompleta = resposta.Dados is { VerificacaoCompleta: false };
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _falhou = true;
+        }
+        finally
+        {
+            if (!_cancellationTokenSource.IsCancellationRequested)
+                _carregando = false;
+        }
+    }
+
+    private async Task VisualizarAsync(AnexoResponse anexo)
+    {
+        var parametros = new DialogParameters
+        {
+            [nameof(VisualizadorAnexoDialog.DocumentoId)] = DocumentoId,
+            [nameof(VisualizadorAnexoDialog.Anexo)] = anexo
+        };
+
+        var opcoes = new DialogOptions
+        {
+            CloseButton = true,
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.ExtraLarge,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<VisualizadorAnexoDialog>(anexo.Nome, parametros, opcoes);
+    }
+
+    private async Task BaixarAsync(AnexoResponse anexo)
+    {
+        if (!_ocupados.Add(anexo.Id))
+            return;
+
+        try
+        {
+            using var resposta = await DocumentosClient.BaixarAnexoAsync(
+                DocumentoId, anexo.Id, _cancellationTokenSource.Token);
+
+            if (!resposta.IsSuccessStatusCode)
+            {
+                Snackbar.Add(await MensagemDeErroAsync(resposta), Severity.Error);
+                return;
+            }
+
+            await using var fluxo = await resposta.Content.ReadAsStreamAsync(_cancellationTokenSource.Token);
+            using var referencia = new DotNetStreamReference(fluxo, leaveOpen: true);
+
+            await JS.InvokeVoidAsync(
+                "invoisys.baixarStream", anexo.NomeArquivo, anexo.TipoConteudo, referencia);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Snackbar.Add("Não foi possível baixar o anexo.", Severity.Error);
+        }
+        finally
+        {
+            _ocupados.Remove(anexo.Id);
+        }
+    }
+
+    internal static async Task<string> MensagemDeErroAsync(HttpResponseMessage resposta)
+    {
+        if (resposta.StatusCode == HttpStatusCode.Unauthorized)
+            return "Sua sessão expirou. Entre novamente.";
+
+        if (resposta.StatusCode == HttpStatusCode.Forbidden)
+            return "Você não tem permissão para realizar esta ação.";
+
+        try
+        {
+            var corpo = await resposta.Content.ReadFromJsonAsync<ApiResponse<object>>();
+
+            if (!string.IsNullOrWhiteSpace(corpo?.Mensagem))
+                return corpo.Mensagem;
+        }
+        catch (Exception)
+        {
+            // Corpo ausente ou fora do formato esperado: usa a mensagem padrão.
+        }
+
+        return "Não foi possível baixar o anexo.";
+    }
+
+    private static string IconeDe(AnexoResponse anexo) =>
+        anexo.TipoConteudo.StartsWith("image/", StringComparison.Ordinal)
+            ? Icons.Material.Outlined.Image
+            : anexo.Extensao == ".pdf"
+                ? Icons.Material.Outlined.PictureAsPdf
+                : Icons.Material.Outlined.InsertDriveFile;
+
+    private static string RotuloDe(AnexoResponse anexo) =>
+        string.IsNullOrEmpty(anexo.Extensao) ? "Arquivo" : anexo.Extensao.TrimStart('.').ToUpperInvariant();
+
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+    }
+}

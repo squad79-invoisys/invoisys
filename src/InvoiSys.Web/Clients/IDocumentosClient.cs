@@ -1,4 +1,5 @@
 using InvoiSys.Application.Documentos;
+using InvoiSys.Application.Documentos.Anexos;
 using InvoiSys.Application.Documentos.ObterResumo;
 using Refit;
 using Responses = InvoiSys.Application.Common.Responses;
@@ -27,5 +28,17 @@ public interface IDocumentosClient
     [Get("/api/documentos/{id}")]
     Task<Responses.ApiResponse<DocumentoResponse>> ObterPorIdAsync(
         Guid id,
+        CancellationToken cancellationToken = default);
+
+    [Get("/api/documentos/{id}/anexos")]
+    Task<Responses.ApiResponse<AnexosDocumentoResponse>> ListarAnexosAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    // Devolve a resposta crua: o corpo é o arquivo, e só os erros trazem ApiResponse.
+    [Get("/api/documentos/{id}/anexos/{anexoId}/arquivo")]
+    Task<HttpResponseMessage> BaixarAnexoAsync(
+        Guid id,
+        string anexoId,
         CancellationToken cancellationToken = default);
 }

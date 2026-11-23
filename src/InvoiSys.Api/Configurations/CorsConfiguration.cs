@@ -25,7 +25,7 @@ public static class CorsConfiguration
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials()
-                        .WithExposedHeaders(TraceIdMiddleware.HeaderName);
+                        .WithExposedHeaders(TraceIdMiddleware.HeaderName, "Content-Disposition");
                 }
             });
         });

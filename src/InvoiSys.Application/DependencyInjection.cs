@@ -9,6 +9,7 @@ using InvoiSys.Application.Coletas.ListarColetas;
 using InvoiSys.Application.Common.Auditoria;
 using InvoiSys.Application.Coletas.ObterResumo;
 using InvoiSys.Application.Dashboard.ObterResumo;
+using InvoiSys.Application.Documentos.Anexos;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
 using InvoiSys.Application.Documentos.ObterResumo;
@@ -57,6 +58,9 @@ public static class DependencyInjection
         services.AddScoped<IConsultarDocumentoUseCase, ConsultarDocumentoUseCase>();
         services.AddScoped<IListarDocumentosUseCase, ListarDocumentosUseCase>();
         services.AddScoped<IObterResumoDocumentosUseCase, ObterResumoDocumentosUseCase>();
+        services.AddScoped<AnexoCatalogo>();
+        services.AddScoped<IListarAnexosDocumentoUseCase, ListarAnexosDocumentoUseCase>();
+        services.AddScoped<IBaixarAnexoDocumentoUseCase, BaixarAnexoDocumentoUseCase>();
 
         services.AddScoped<IObterResumoDashboardUseCase, ObterResumoDashboardUseCase>();
 

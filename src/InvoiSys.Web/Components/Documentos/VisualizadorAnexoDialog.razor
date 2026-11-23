@@ -1,0 +1,94 @@
+@implements IAsyncDisposable
+@using InvoiSys.Application.Documentos.Anexos
+@inject IDocumentosClient DocumentosClient
+@inject IJSRuntime JS
+
+<MudDialog>
+    <DialogContent>
+        @if (_carregando)
+        {
+            <div class="visualizador-estado" role="status">
+                <MudProgressCircular Indeterminate="true" />
+                <span>Carregando o arquivo...</span>
+            </div>
+        }
+        else if (_erro is not null)
+        {
+            <div class="visualizador-estado" role="alert">
+                <span>@_erro</span>
+            </div>
+        }
+        else if (Anexo.TipoConteudo.StartsWith("image/", StringComparison.Ordinal))
+        {
+            <img class="visualizador-imagem" src="@_url" alt="@Anexo.Nome" />
+        }
+        else
+        {
+            <iframe class="visualizador-quadro" src="@_url" title="@Anexo.Nome"></iframe>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (_url is not null)
+        {
+            <a class="visualizador-baixar" href="@_url" download="@Anexo.NomeArquivo">Baixar</a>
+        }
+        <MudButton Variant="Variant.Text" OnClick="Fechar">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter, EditorRequired] public Guid DocumentoId { get; set; }
+    [Parameter, EditorRequired] public AnexoResponse Anexo { get; set; } = null!;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private string? _url;
+    private string? _erro;
+    private bool _carregando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            using var resposta = await DocumentosClient.BaixarAnexoAsync(
+                DocumentoId, Anexo.Id, _cancellationTokenSource.Token);
+
+            if (!resposta.IsSuccessStatusCode)
+            {
+                _erro = await AnexosDocumento.MensagemDeErroAsync(resposta);
+                return;
+            }
+
+            await using var fluxo = await resposta.Content.ReadAsStreamAsync(_cancellationTokenSource.Token);
+            using var referencia = new DotNetStreamReference(fluxo, leaveOpen: true);
+
+            // O tipo do blob vem da API e só PDF e imagens chegam aqui; HTML ou SVG
+            // executariam script na origem da aplicação.
+            _url = await JS.InvokeAsync<string>("invoisys.criarUrlBlob", Anexo.TipoConteudo, referencia);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _erro = "Não foi possível carregar o arquivo.";
+        }
+        finally
+        {
+            _carregando = false;
+        }
+    }
+
+    private void Fechar() => MudDialog.Close(DialogResult.Ok(true));
+
+    public async ValueTask DisposeAsync()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+
+        if (_url is not null)
+            await JS.InvokeVoidAsync("invoisys.revogarUrlBlob", _url);
+    }
+}
