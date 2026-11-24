@@ -40,4 +40,14 @@ public interface IFontesClient
     Task<Responses.ApiResponse<object>> DesativarAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+
+    [Patch("/api/fontes/{id}/agendamento/pausar")]
+    Task<Responses.ApiResponse<object>> PausarAgendamentoAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    [Patch("/api/fontes/{id}/agendamento/retomar")]
+    Task<Responses.ApiResponse<object>> RetomarAgendamentoAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

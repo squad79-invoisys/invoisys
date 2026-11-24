@@ -649,9 +649,14 @@ ConsultarFonte
 ListarFontes
 AtualizarFonte
 AlterarStatusFonte
+AlterarAgendamentoFonte
 ```
 
 `AlterarStatusFonteUseCase` é usado tanto para ativar quanto para desativar.
+
+`AlterarAgendamentoFonteUseCase` pausa ou retoma o agendamento. Uma fonte pausada continua ativa e aceita coleta manual, mas o worker de coleta automática a ignora. A listagem de fontes também devolve `UltimaColetaEm` e `ProximaColetaEm`. A próxima coleta é estimada como a última execução (ou a criação da fonte) mais a periodicidade, e vem nula quando a fonte está inativa ou pausada.
+
+Cada fonte guarda `FalhasConsecutivas`. O `ColetaExecutor` soma 1 a cada execução que termina em falha (manual ou automática; o cancelamento pelo encerramento da aplicação não conta) e zera o contador quando uma coleta termina com sucesso. Ao chegar a `Fonte.LimiteFalhasConsecutivasAlerta` (3), grava um registro de auditoria do tipo `Alerta`, com a fonte e o motivo da última falha, que aparece na tela Histórico.
 
 ## 4.8 Casos de uso de coletas
 
@@ -3403,6 +3408,8 @@ Esta tabela registra os endpoints encontrados nos Controllers atuais.
 | PUT | `/api/fontes/{id}` | Administrador, Operador |
 | PATCH | `/api/fontes/{id}/ativar` | Administrador, Operador |
 | PATCH | `/api/fontes/{id}/desativar` | Administrador, Operador |
+| PATCH | `/api/fontes/{id}/agendamento/pausar` | Administrador, Operador |
+| PATCH | `/api/fontes/{id}/agendamento/retomar` | Administrador, Operador |
 | POST | `/api/coletas/fontes/{fonteId}/executar` | Administrador, Operador |
 | GET | `/api/coletas/{id}` | autenticado |
 | GET | `/api/coletas` | autenticado |

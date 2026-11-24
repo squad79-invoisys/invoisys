@@ -13,6 +13,6 @@ public sealed class ConsultarFonteUseCase(
         var fonte = await fonteRepository.ObterPorIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Fonte não encontrada.");
 
-        return FonteResponse.FromEntity(fonte);
+        return await FonteResponseFactory.CriarAsync(fonteRepository, fonte, cancellationToken);
     }
 }

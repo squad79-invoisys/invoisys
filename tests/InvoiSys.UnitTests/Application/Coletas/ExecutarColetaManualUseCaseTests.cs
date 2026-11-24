@@ -150,6 +150,14 @@ public sealed class ExecutarColetaManualUseCaseTests
 
     private sealed class FonteStub(Fonte fonte) : IFonteRepository
     {
+        public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+            IReadOnlyCollection<Guid> fonteIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(
+                new Dictionary<Guid, DateTimeOffset>());
+        public Task<int> IncrementarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.FromResult(1);
+        public Task ZerarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task AdicionarAsync(Fonte item, CancellationToken token) => Task.CompletedTask;

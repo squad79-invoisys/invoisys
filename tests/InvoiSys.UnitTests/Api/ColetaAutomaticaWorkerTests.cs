@@ -125,6 +125,14 @@ public sealed class ColetaAutomaticaWorkerTests
 
     private sealed class FonteStub(IReadOnlyList<Guid> ids) : IFonteRepository
     {
+        public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+            IReadOnlyCollection<Guid> fonteIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(
+                new Dictionary<Guid, DateTimeOffset>());
+        public Task<int> IncrementarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.FromResult(1);
+        public Task ZerarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(
             DateTimeOffset agoraUtc, CancellationToken token) => Task.FromResult(ids);
         public Task AdicionarAsync(Fonte fonte, CancellationToken token) => throw new NotSupportedException();

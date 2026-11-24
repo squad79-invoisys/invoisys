@@ -23,8 +23,16 @@ public sealed class ListarFontesUseCase(
             request.Busca,
             cancellationToken);
 
+        var ultimasColetas = await fonteRepository.ObterUltimasColetasAsync(
+            itens.Select(fonte => fonte.Id).ToList(),
+            cancellationToken);
+
         return new PagedResponse<FonteResponse>(
-            itens.Select(FonteResponse.FromEntity).ToList(),
+            itens
+                .Select(fonte => FonteResponse.FromEntity(
+                    fonte,
+                    ultimasColetas.TryGetValue(fonte.Id, out var ultima) ? ultima : null))
+                .ToList(),
             request.Pagina,
             request.TamanhoPagina,
             total);

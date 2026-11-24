@@ -124,6 +124,129 @@ public sealed class ColetaExecutorTests
         medicoes.Itens.Should().NotContain(m => m.Instrumento == "invoisys.documentos.coletados");
     }
 
+    [Fact]
+    public async Task Automatica_ComAgendamentoPausado_NaoDeveColetar()
+    {
+        var fixture = new Fixture();
+        fixture.Fonte.PausarAgendamento(Guid.NewGuid());
+        fixture.Relogio.Agora = DateTimeOffset.UtcNow.AddHours(2);
+
+        var response = await fixture.CriarExecutor().ExecutarAutomaticaSeVencidaAsync(
+            fixture.Fonte.Id, TestContext.Current.CancellationToken);
+
+        response.Should().BeNull();
+        fixture.Execucoes.Itens.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Manual_ComAgendamentoPausado_DeveColetar()
+    {
+        var fixture = new Fixture();
+        fixture.Fonte.PausarAgendamento(Guid.NewGuid());
+
+        var response = await fixture.CriarExecutor().ExecutarManualAsync(
+            fixture.Fonte.Id, Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        response.Status.Should().Be(StatusExecucaoColeta.Concluida);
+    }
+
+    [Fact]
+    public async Task Automatica_TresFalhasSeguidas_DeveRegistrarUmUnicoAlerta()
+    {
+        var fixture = new Fixture { ErroColetor = new InvalidOperationException("Origem fora do ar") };
+
+        for (var tentativa = 0; tentativa < 4; tentativa++)
+            await ExecutarAutomaticaComFalhaAsync(fixture);
+
+        fixture.Fontes.Falhas.Should().Be(4);
+        var alerta = fixture.Auditoria.Registros.Should()
+            .ContainSingle(r => r.Tipo == TipoEventoAuditoria.Alerta).Subject;
+        alerta.Atividade.Should().Contain("3 falhas consecutivas").And.Contain("Origem fora do ar");
+        alerta.Objeto.Should().Be(fixture.Fonte.Nome);
+        alerta.ObjetoId.Should().Be(fixture.Fonte.Id);
+        alerta.Responsavel.Should().Be(AuditoriaService.ResponsavelSistema);
+    }
+
+    [Fact]
+    public async Task Manual_TresFalhasSeguidas_DeveRegistrarAlerta()
+    {
+        var fixture = new Fixture { ErroColetor = new InvalidOperationException("Página removida") };
+        var executor = fixture.CriarExecutor();
+
+        for (var tentativa = 0; tentativa < 3; tentativa++)
+        {
+            var act = () => executor.ExecutarManualAsync(
+                fixture.Fonte.Id, Guid.NewGuid(), TestContext.Current.CancellationToken);
+            await act.Should().ThrowAsync<BusinessException>();
+        }
+
+        fixture.Fontes.Falhas.Should().Be(3);
+        fixture.Auditoria.Registros.Should()
+            .ContainSingle(r => r.Tipo == TipoEventoAuditoria.Alerta)
+            .Which.Atividade.Should().Contain("Página removida");
+    }
+
+    [Fact]
+    public async Task Sucesso_AposFalhas_DeveZerarContadorERearmarAlerta()
+    {
+        var fixture = new Fixture { ErroColetor = new InvalidOperationException("falhou") };
+        await ExecutarAutomaticaComFalhaAsync(fixture);
+        await ExecutarAutomaticaComFalhaAsync(fixture);
+        fixture.Fontes.Falhas.Should().Be(2);
+
+        fixture.ErroColetor = null;
+        fixture.Relogio.Agora = DateTimeOffset.UtcNow.AddHours(2);
+        (await fixture.CriarExecutor().ExecutarAutomaticaSeVencidaAsync(
+            fixture.Fonte.Id, TestContext.Current.CancellationToken)).Should().NotBeNull();
+        fixture.Fontes.Falhas.Should().Be(0);
+
+        fixture.ErroColetor = new InvalidOperationException("falhou");
+        for (var tentativa = 0; tentativa < 3; tentativa++)
+            await ExecutarAutomaticaComFalhaAsync(fixture);
+        fixture.Auditoria.Registros.Should().ContainSingle(r => r.Tipo == TipoEventoAuditoria.Alerta);
+    }
+
+    [Fact]
+    public async Task Automatica_CanceladaPeloEncerramento_NaoDeveContarFalha()
+    {
+        var fixture = new Fixture { ErroColetor = new OperationCanceledException() };
+        fixture.Relogio.Agora = DateTimeOffset.UtcNow.AddHours(2);
+        using var encerramento = new CancellationTokenSource();
+        encerramento.Cancel();
+
+        var act = () => fixture.CriarExecutor().ExecutarAutomaticaSeVencidaAsync(
+            fixture.Fonte.Id, encerramento.Token, encerramento.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        fixture.Execucoes.Itens.Should().ContainSingle()
+            .Which.Status.Should().Be(StatusExecucaoColeta.Falhou);
+        fixture.Fontes.Falhas.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Automatica_ComTimeout_DeveContarFalha()
+    {
+        var fixture = new Fixture { ErroColetor = new OperationCanceledException() };
+        fixture.Relogio.Agora = DateTimeOffset.UtcNow.AddHours(2);
+        using var timeout = new CancellationTokenSource();
+        using var encerramento = new CancellationTokenSource();
+        timeout.Cancel();
+
+        var act = () => fixture.CriarExecutor().ExecutarAutomaticaSeVencidaAsync(
+            fixture.Fonte.Id, timeout.Token, encerramento.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        fixture.Fontes.Falhas.Should().Be(1);
+    }
+
+    private static async Task ExecutarAutomaticaComFalhaAsync(Fixture fixture)
+    {
+        fixture.Relogio.Agora = DateTimeOffset.UtcNow.AddHours(2);
+        var act = () => fixture.CriarExecutor().ExecutarAutomaticaSeVencidaAsync(
+            fixture.Fonte.Id, TestContext.Current.CancellationToken);
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
     private sealed class Fixture
     {
         public Fonte Fonte { get; } = new("Portal", "https://exemplo.com",
@@ -133,12 +256,16 @@ public sealed class ColetaExecutorTests
         public DocumentosStub Documentos { get; } = new();
         public UnitOfWorkStub UnitOfWork { get; } = new();
         public TestMeterFactory MeterFactory { get; } = new();
-        public Exception? ErroColetor { get; init; }
+        public Exception? ErroColetor { get; set; }
+        public FonteStub Fontes { get; }
+        public AuditoriaServiceStub Auditoria { get; } = new();
+
+        public Fixture() => Fontes = new FonteStub(Fonte);
 
         public ColetaExecutor CriarExecutor() => new(
-            new FonteStub(Fonte), Execucoes, Documentos,
-            new ResolverStub(new CollectorStub(ErroColetor)), UnitOfWork,
-            new AuditoriaServiceStub(), new LockStub(), Relogio,
+            Fontes, Execucoes, Documentos,
+            new ResolverStub(new CollectorStub(() => ErroColetor)), UnitOfWork,
+            Auditoria, new LockStub(), Relogio,
             new ColetaMetrics(MeterFactory, NullLogger<ColetaMetrics>.Instance),
             NullLogger<ColetaExecutor>.Instance);
     }
@@ -165,6 +292,18 @@ public sealed class ColetaExecutorTests
 
     private sealed class FonteStub(Fonte fonte) : IFonteRepository
     {
+        public int Falhas { get; private set; }
+        public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+            IReadOnlyCollection<Guid> fonteIds, CancellationToken token) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(
+                new Dictionary<Guid, DateTimeOffset>());
+        public Task<int> IncrementarFalhasConsecutivasAsync(Guid fonteId, CancellationToken token) =>
+            Task.FromResult(++Falhas);
+        public Task ZerarFalhasConsecutivasAsync(Guid fonteId, CancellationToken token)
+        {
+            Falhas = 0;
+            return Task.CompletedTask;
+        }
         public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(
             DateTimeOffset agoraUtc, CancellationToken token) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);
@@ -226,12 +365,13 @@ public sealed class ColetaExecutorTests
         public IContentCollector Resolver(TipoFonte tipo) => collector;
     }
 
-    private sealed class CollectorStub(Exception? erro) : IContentCollector
+    private sealed class CollectorStub(Func<Exception?> obterErro) : IContentCollector
     {
         public bool Suporta(TipoFonte tipo) => true;
         public Task<IReadOnlyList<CollectedDocument>> ColetarAsync(
             string url, string? seletorConteudo, CancellationToken token)
         {
+            var erro = obterErro();
             if (erro is not null)
                 return Task.FromException<IReadOnlyList<CollectedDocument>>(erro);
             var item = new CollectedDocument("Documento", url, "WEB", url,
@@ -258,13 +398,25 @@ public sealed class ColetaExecutorTests
         }
     }
 
+    private sealed record RegistroCapturado(
+        TipoEventoAuditoria Tipo, string Atividade, string Objeto, Guid? ObjetoId, string? Responsavel);
+
     private sealed class AuditoriaServiceStub : IAuditoriaService
     {
-        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
-            Guid? objetoId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public List<RegistroCapturado> Registros { get; } = [];
 
         public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
-            Guid? objetoId, Guid? usuarioId, string responsavel, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+            Guid? objetoId, CancellationToken cancellationToken)
+        {
+            Registros.Add(new(tipo, atividade, objeto, objetoId, null));
+            return Task.CompletedTask;
+        }
+
+        public Task RegistrarAsync(TipoEventoAuditoria tipo, string atividade, string objeto,
+            Guid? objetoId, Guid? usuarioId, string responsavel, CancellationToken cancellationToken)
+        {
+            Registros.Add(new(tipo, atividade, objeto, objetoId, responsavel));
+            return Task.CompletedTask;
+        }
     }
 }

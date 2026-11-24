@@ -1,6 +1,7 @@
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Fontes;
+using InvoiSys.Application.Fontes.AlterarAgendamentoFonte;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
@@ -24,6 +25,7 @@ public sealed class FontesController(
     IObterResumoFontesUseCase obterResumoFontesUseCase,
     IAtualizarFonteUseCase atualizarFonteUseCase,
     IAlterarStatusFonteUseCase alterarStatusFonteUseCase,
+    IAlterarAgendamentoFonteUseCase alterarAgendamentoFonteUseCase,
     IImportarFontesUseCase importarFontesUseCase) : ControllerBase
 {
     [HttpPost]
@@ -240,5 +242,61 @@ public sealed class FontesController(
 
         return Ok(ApiResponse<object>.Ok(
             "Fonte desativada com sucesso."));
+    }
+
+    [HttpPatch("{id:guid}/agendamento/pausar")]
+    [Authorize(Roles = "Administrador,Operador")]
+    [SwaggerOperation(
+        Summary = "Pausa o agendamento de uma fonte",
+        Description = "Suspende as coletas automáticas sem inativar a fonte. A coleta manual continua disponível.",
+        OperationId = "PausarAgendamentoFonte",
+        Tags = ["Fontes"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Agendamento pausado com sucesso.",
+        typeof(ApiResponse<object>))]
+    [SwaggerResponse(
+        StatusCodes.Status404NotFound,
+        "Fonte não encontrada.",
+        typeof(ApiResponse<object>))]
+    public async Task<IActionResult> PausarAgendamentoAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await alterarAgendamentoFonteUseCase.Execute(
+            id,
+            true,
+            cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(
+            "Agendamento pausado com sucesso."));
+    }
+
+    [HttpPatch("{id:guid}/agendamento/retomar")]
+    [Authorize(Roles = "Administrador,Operador")]
+    [SwaggerOperation(
+        Summary = "Retoma o agendamento de uma fonte",
+        Description = "Volta a incluir a fonte nas coletas automáticas, conforme a periodicidade.",
+        OperationId = "RetomarAgendamentoFonte",
+        Tags = ["Fontes"])]
+    [SwaggerResponse(
+        StatusCodes.Status200OK,
+        "Agendamento retomado com sucesso.",
+        typeof(ApiResponse<object>))]
+    [SwaggerResponse(
+        StatusCodes.Status404NotFound,
+        "Fonte não encontrada.",
+        typeof(ApiResponse<object>))]
+    public async Task<IActionResult> RetomarAgendamentoAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        await alterarAgendamentoFonteUseCase.Execute(
+            id,
+            false,
+            cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(
+            "Agendamento retomado com sucesso."));
     }
 }

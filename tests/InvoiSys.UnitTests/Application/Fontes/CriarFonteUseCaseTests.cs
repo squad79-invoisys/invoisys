@@ -109,6 +109,14 @@ public sealed class CriarFonteUseCaseTests
 
     private sealed class FonteRepositoryStub : IFonteRepository
     {
+        public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+            IReadOnlyCollection<Guid> fonteIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(
+                new Dictionary<Guid, DateTimeOffset>());
+        public Task<int> IncrementarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.FromResult(1);
+        public Task ZerarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<IReadOnlyList<Guid>> ListarIdsAtivasVencidasAsync(DateTimeOffset agoraUtc, CancellationToken token) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);
         public Fonte? Adicionada { get; private set; }

@@ -5,5 +5,6 @@ public enum TipoEventoAuditoria
     Coleta = 1,
     Fonte = 2,
     Autenticacao = 3,
-    Usuario = 4
+    Usuario = 4,
+    Alerta = 5
 }

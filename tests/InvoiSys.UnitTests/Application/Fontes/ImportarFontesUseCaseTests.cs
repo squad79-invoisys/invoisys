@@ -361,6 +361,14 @@ public sealed class ImportarFontesUseCaseTests
 
     private sealed class FonteRepositoryStub : IFonteRepository
     {
+        public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+            IReadOnlyCollection<Guid> fonteIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(
+                new Dictionary<Guid, DateTimeOffset>());
+        public Task<int> IncrementarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.FromResult(1);
+        public Task ZerarFalhasConsecutivasAsync(
+            Guid fonteId, CancellationToken cancellationToken) => Task.CompletedTask;
         public List<Fonte> Adicionadas { get; } = [];
 
         public Task AdicionarAsync(Fonte fonte, CancellationToken cancellationToken)

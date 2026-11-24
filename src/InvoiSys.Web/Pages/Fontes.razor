@@ -4,6 +4,7 @@
 @using System.Net
 @using InvoiSys.Application.Coletas
 @using InvoiSys.Application.Fontes
+@using InvoiSys.Domain.Entities
 @using InvoiSys.Domain.Enums
 @using InvoiSys.Web.Components.Fontes
 @inject IFontesClient FontesClient
@@ -65,13 +66,20 @@
                   RowsPerPage="10" Elevation="0" Class="fontes-table">
             <HeaderContent>
                 <MudTh>Fonte</MudTh><MudTh>Tipo</MudTh><MudTh>Contexto</MudTh><MudTh>URL</MudTh><MudTh>Status</MudTh>
-                <MudTh>Periodicidade</MudTh><MudTh>Última coleta</MudTh><MudTh Class="actions-column">Ações</MudTh>
+                <MudTh>Periodicidade</MudTh><MudTh>Última coleta</MudTh><MudTh>Próxima coleta</MudTh><MudTh Class="actions-column">Ações</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Fonte">
                     <div class="fonte-name">
                         <span class="fonte-avatar" aria-hidden="true"><MudIcon Icon="@Icons.Material.Outlined.Adjust" Size="Size.Small" /></span>
                         <span title="@context.Nome">@context.Nome</span>
+                        @if (PossuiAlertaFalhas(context))
+                        {
+                            <MudTooltip Text="@($"{context.FalhasConsecutivas} falhas consecutivas de coleta")">
+                                <MudIcon Icon="@Icons.Material.Outlined.WarningAmber" Color="Color.Warning" Size="Size.Small"
+                                         Class="fonte-alerta" aria-label="@($"Alerta: {context.FalhasConsecutivas} falhas consecutivas de coleta")" />
+                            </MudTooltip>
+                        }
                     </div>
                 </MudTd>
                 <MudTd DataLabel="Tipo">@FormatarTipo(context.Tipo)</MudTd>
@@ -81,7 +89,17 @@
                 </MudTd>
                 <MudTd DataLabel="Status"><span class="status-badge @ObterClasseStatus(context.Status)">@FormatarStatus(context.Status)</span></MudTd>
                 <MudTd DataLabel="Periodicidade">@FormatarPeriodicidade(context.PeriodicidadeMinutos)</MudTd>
-                <MudTd DataLabel="Última coleta">—</MudTd>
+                <MudTd DataLabel="Última coleta">@TextoUltimaColeta(context)</MudTd>
+                <MudTd DataLabel="Próxima coleta">
+                    @if (context.AgendamentoPausado && context.Status == StatusFonte.Ativa)
+                    {
+                        <span class="status-badge status-paused">Pausado</span>
+                    }
+                    else
+                    {
+                        @TextoProximaColeta(context)
+                    }
+                </MudTd>
                 <MudTd DataLabel="Ações" Class="actions-column">
                     <div class="row-actions">
                         <MudTooltip Text="Visualizar detalhes">
@@ -94,6 +112,13 @@
                                     <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
                                                    Disabled="@(_fonteEmAlteracaoId is not null)"
                                                    OnClick="@(() => AbrirEdicaoAsync(context))" aria-label="Editar fonte" />
+                                </MudTooltip>
+                                <MudTooltip Text="@(context.AgendamentoPausado ? "Retomar agendamento" : "Pausar agendamento")">
+                                    <MudIconButton Icon="@(context.AgendamentoPausado ? Icons.Material.Outlined.Timer : Icons.Material.Outlined.TimerOff)"
+                                                   Size="Size.Small"
+                                                   Disabled="@(_fonteEmAlteracaoId is not null)"
+                                                   OnClick="@(() => ConfirmarAlteracaoAgendamentoAsync(context))"
+                                                   aria-label="@(context.AgendamentoPausado ? "Retomar agendamento" : "Pausar agendamento")" />
                                 </MudTooltip>
                                 <MudTooltip Text="@(context.Status == StatusFonte.Ativa ? "Inativar fonte" : "Ativar fonte")">
                                     <MudIconButton Icon="@(context.Status == StatusFonte.Ativa ? Icons.Material.Outlined.PauseCircleOutline : Icons.Material.Outlined.PlayCircleOutline)"
@@ -137,7 +162,12 @@
                 <div><dt>Periodicidade</dt><dd>@FormatarPeriodicidade(fonte.PeriodicidadeMinutos)</dd></div>
                 <div><dt>Timeout</dt><dd>—</dd></div>
                 <div><dt>Última execução</dt><dd>@TextoUltimaExecucao(_resumo)</dd></div>
-                <div><dt>Próxima execução</dt><dd>—</dd></div>
+                <div><dt>Agendamento</dt><dd>@(fonte.AgendamentoPausado ? "Pausado" : "Ativo")</dd></div>
+                <div><dt>Próxima execução</dt><dd>@TextoProximaColeta(fonte)</dd></div>
+                <div>
+                    <dt>Falhas consecutivas</dt>
+                    <dd class="@(PossuiAlertaFalhas(fonte) ? "details-warning" : null)">@fonte.FalhasConsecutivas</dd>
+                </div>
                 <div><dt>Documentos coletados</dt><dd>@TextoDocumentos(_resumo)</dd></div>
                 <div>
                     <dt>Taxa de sucesso (24h)</dt>
@@ -322,6 +352,70 @@
         }
     }
 
+    private async Task ConfirmarAlteracaoAgendamentoAsync(FonteResponse fonte)
+    {
+        var retomar = fonte.AgendamentoPausado;
+        var confirmado = await DialogService.ShowMessageBoxAsync(
+            retomar ? "Retomar agendamento" : "Pausar agendamento",
+            retomar
+                ? $"Deseja retomar as coletas automáticas da fonte “{fonte.Nome}”?"
+                : $"Deseja pausar as coletas automáticas da fonte “{fonte.Nome}”? A fonte continua ativa e a coleta manual segue disponível.",
+            yesText: retomar ? "Retomar" : "Pausar",
+            cancelText: "Cancelar");
+
+        if (confirmado is not true)
+            return;
+
+        _fonteEmAlteracaoId = fonte.Id;
+        try
+        {
+            var response = retomar
+                ? await FontesClient.RetomarAgendamentoAsync(fonte.Id, _cancellationTokenSource.Token)
+                : await FontesClient.PausarAgendamentoAsync(fonte.Id, _cancellationTokenSource.Token);
+
+            if (!response.Sucesso)
+            {
+                Snackbar.Add(response.Mensagem, Severity.Error);
+                return;
+            }
+
+            await CarregarFontesAsync();
+            Snackbar.Add(response.Mensagem, Severity.Success);
+        }
+        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested) { }
+        catch (Refit.ApiException exception)
+        {
+            Snackbar.Add(
+                await MensagemDeErroAsync(exception, "Não foi possível alterar o agendamento da fonte. Tente novamente."),
+                Severity.Error);
+        }
+        finally
+        {
+            _fonteEmAlteracaoId = null;
+        }
+    }
+
+    private static bool PossuiAlertaFalhas(FonteResponse fonte) =>
+        fonte.FalhasConsecutivas >= Fonte.LimiteFalhasConsecutivasAlerta;
+
+    private static string TextoUltimaColeta(FonteResponse fonte) =>
+        fonte.UltimaColetaEm is { } ultima ? FormatarDataHora(ultima) : "—";
+
+    // O worker verifica as fontes periodicamente, então a próxima coleta é uma estimativa.
+    private static string TextoProximaColeta(FonteResponse fonte)
+    {
+        if (fonte.Status != StatusFonte.Ativa)
+            return "—";
+
+        if (fonte.AgendamentoPausado)
+            return "Pausado";
+
+        if (fonte.ProximaColetaEm is not { } proxima)
+            return "—";
+
+        return proxima <= DateTimeOffset.UtcNow ? "Em instantes" : $"≈ {FormatarDataHora(proxima)}";
+    }
+
     private string FormatarPercentual(int quantidade) => _totalFontes == 0 ? "0%" : $"{quantidade * 100d / _totalFontes:0.#}%";
 
     private async Task SelecionarFonteAsync(FonteResponse fonte)
@@ -462,6 +556,9 @@
 
         if (local.Date == DateTime.Today.AddDays(-1))
             return $"Ontem, {hora}";
+
+        if (local.Date == DateTime.Today.AddDays(1))
+            return $"Amanhã, {hora}";
 
         return local.ToString("dd/MM/yyyy, HH:mm");
     }

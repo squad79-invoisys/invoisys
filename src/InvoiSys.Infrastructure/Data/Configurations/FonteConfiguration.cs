@@ -37,6 +37,12 @@ public sealed class FonteConfiguration : IEntityTypeConfiguration<Fonte>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(x => x.AgendamentoPausado)
+            .IsRequired();
+
+        builder.Property(x => x.FalhasConsecutivas)
+            .IsRequired();
+
         builder.HasIndex(x => x.Url);
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Contexto);

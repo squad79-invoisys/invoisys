@@ -137,6 +137,9 @@ namespace InvoiSys.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AgendamentoPausado")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset?>("AlteradoEm")
                         .HasColumnType("timestamp with time zone");
 
@@ -153,6 +156,9 @@ namespace InvoiSys.Infrastructure.Migrations
 
                     b.Property<Guid>("CriadoPorUsuarioId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("FalhasConsecutivas")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Nome")
                         .IsRequired()

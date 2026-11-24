@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using InvoiSys.Application.Coletas;
+using InvoiSys.Application.Common.Abstractions;
+using InvoiSys.Application.Common.Auditoria;
 
 namespace InvoiSys.IntegrationTests.Infrastructure;
 
@@ -51,6 +53,77 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
         await using var db = fixture.CreateDbContext();
         (await db.Documentos.CountAsync(x => x.ExecucaoColetaId == executada.Id, Ct))
             .Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Automatica_DeveIgnorarFonteComAgendamentoPausado()
+    {
+        await using var services = CriarServices(new CollectorStub());
+        var pausada = await CriarFonteAsync(1, true);
+        await using (var db = fixture.CreateDbContext())
+        {
+            var fonte = await db.Fontes.SingleAsync(x => x.Id == pausada.Id, Ct);
+            fonte.PausarAgendamento(Guid.NewGuid());
+            await db.SaveChangesAsync(Ct);
+        }
+
+        await using var scope = services.CreateAsyncScope();
+        var ids = await scope.ServiceProvider.GetRequiredService<IFonteRepository>()
+            .ListarIdsAtivasVencidasAsync(DateTimeOffset.UtcNow, Ct);
+        ids.Should().NotContain(pausada.Id);
+
+        (await scope.ServiceProvider.GetRequiredService<IColetaExecutor>()
+            .ExecutarAutomaticaSeVencidaAsync(pausada.Id, Ct)).Should().BeNull();
+        await using var verificacao = fixture.CreateDbContext();
+        (await verificacao.ExecucoesColeta.AnyAsync(x => x.FonteId == pausada.Id, Ct))
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task FalhasConsecutivas_DevemGerarAlertaEZerarAposSucesso()
+    {
+        var collector = new CollectorStub { Erro = new InvalidOperationException("Origem indisponível") };
+        await using var services = CriarServices(collector);
+        var fonte = await CriarFonteAsync(1, true);
+
+        for (var tentativa = 0; tentativa < 3; tentativa++)
+        {
+            await using var scope = services.CreateAsyncScope();
+            var manual = () => scope.ServiceProvider.GetRequiredService<IColetaExecutor>()
+                .ExecutarManualAsync(fonte.Id, Guid.NewGuid(), Ct);
+            await manual.Should().ThrowAsync<BusinessException>();
+        }
+
+        await using (var db = fixture.CreateDbContext())
+        {
+            (await db.Fontes.SingleAsync(x => x.Id == fonte.Id, Ct))
+                .FalhasConsecutivas.Should().Be(3);
+            var alerta = await db.RegistrosAuditoria
+                .SingleAsync(x => x.ObjetoId == fonte.Id && x.Tipo == TipoEventoAuditoria.Alerta, Ct);
+            alerta.Atividade.Should().Contain("3 falhas consecutivas").And.Contain("Origem indisponível");
+            alerta.Responsavel.Should().Be(AuditoriaService.ResponsavelSistema);
+        }
+
+        collector.Erro = null;
+        await using (var scope = services.CreateAsyncScope())
+        {
+            (await scope.ServiceProvider.GetRequiredService<IColetaExecutor>()
+                .ExecutarManualAsync(fonte.Id, Guid.NewGuid(), Ct))
+                .Status.Should().Be(StatusExecucaoColeta.Concluida);
+        }
+
+        await using (var db = fixture.CreateDbContext())
+        {
+            (await db.Fontes.SingleAsync(x => x.Id == fonte.Id, Ct))
+                .FalhasConsecutivas.Should().Be(0);
+        }
+
+        await using (var scope = services.CreateAsyncScope())
+        {
+            var ultimas = await scope.ServiceProvider.GetRequiredService<IFonteRepository>()
+                .ObterUltimasColetasAsync([fonte.Id], Ct);
+            ultimas.Should().ContainKey(fonte.Id);
+        }
     }
 
     [Fact]
@@ -570,6 +643,10 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IFonteColetaLock, PostgresFonteColetaLock>();
         services.AddScoped<IColetaExecutor, ColetaExecutor>();
+        services.AddScoped<IRegistroAuditoriaRepository, RegistroAuditoriaRepository>();
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
+        services.AddSingleton<ICurrentUser, UsuarioAnonimo>();
+        services.AddSingleton<IContextoRequisicao, ContextoSemRequisicao>();
         services.AddSingleton<ICollectorResolver>(new ResolverStub(collector));
         return services.BuildServiceProvider();
     }
@@ -594,6 +671,18 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
         return fonte;
     }
 
+    private sealed class UsuarioAnonimo : ICurrentUser
+    {
+        public Guid? UsuarioId => null;
+        public string? Email => null;
+        public bool EstaAutenticado => false;
+    }
+
+    private sealed class ContextoSemRequisicao : IContextoRequisicao
+    {
+        public string? EnderecoIp => null;
+    }
+
     private sealed class ResolverStub(CollectorStub collector) : ICollectorResolver
     {
         public IContentCollector Resolver(TipoFonte tipo) => collector;
@@ -611,6 +700,7 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
 
     private sealed class CollectorStub(bool bloquear = false) : IContentCollector
     {
+        public Exception? Erro { get; set; }
         private readonly TaskCompletionSource _entrou = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _entraramDuas = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _liberado = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -628,6 +718,8 @@ public sealed class ColetaAutomaticaIntegrationTests(PostgresFixture fixture)
                 _entraramDuas.TrySetResult();
             if (bloquear)
                 await _liberado.Task.WaitAsync(cancellationToken);
+            if (Erro is not null)
+                throw Erro;
             var item = new CollectedDocument("Documento", url, "WEB", url,
                 null, "Conteúdo", null, new string('a', 64));
             return [item, item];
