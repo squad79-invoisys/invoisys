@@ -15,9 +15,14 @@ public sealed record FonteResponse(
     DateTimeOffset CriadoEm,
     Guid CriadoPorUsuarioId,
     DateTimeOffset? AlteradoEm,
-    Guid? AlteradoPorUsuarioId)
+    Guid? AlteradoPorUsuarioId,
+    bool AgendamentoPausado = false,
+    int FalhasConsecutivas = 0,
+    DateTimeOffset? UltimaColetaEm = null,
+    DateTimeOffset? ProximaColetaEm = null)
 {
-    public static FonteResponse FromEntity(Fonte fonte) =>
+    /// <param name="ultimaColetaEm">Fim (ou início) da execução mais recente da fonte, se houver.</param>
+    public static FonteResponse FromEntity(Fonte fonte, DateTimeOffset? ultimaColetaEm = null) =>
         new(
             fonte.Id,
             fonte.Nome,
@@ -30,5 +35,9 @@ public sealed record FonteResponse(
             fonte.CriadoEm,
             fonte.CriadoPorUsuarioId,
             fonte.AlteradoEm,
-            fonte.AlteradoPorUsuarioId);
+            fonte.AlteradoPorUsuarioId,
+            fonte.AgendamentoPausado,
+            fonte.FalhasConsecutivas,
+            ultimaColetaEm,
+            fonte.CalcularProximaColeta(ultimaColetaEm));
 }

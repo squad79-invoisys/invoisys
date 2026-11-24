@@ -42,6 +42,9 @@
 .status-badge { border-radius:999px; display:inline-block; font-size:var(--fs-small); font-weight:600; min-width:84px; padding:6px 10px; text-align:center; }
 .status-active { background:#e0f7e8; color:#0a9e40; }
 .status-inactive { background:#fff2db; color:#d97706; }
+.status-paused { background:#eef1f5; color:#5e697a; }
+.fonte-name ::deep .fonte-alerta { flex-shrink:0; }
+.details-warning { color:#d97706 !important; font-weight:600; }
 .actions-column { white-space:nowrap; }
 .row-actions { align-items:center; display:flex; gap:2px; justify-content:center; min-width:0; width:100%; }
 .empty-state { align-items:center; color:#5e697a; display:flex; flex-direction:column; gap:8px; padding:48px 16px; text-align:center; }

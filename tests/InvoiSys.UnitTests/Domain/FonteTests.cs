@@ -121,4 +121,50 @@ public sealed class FonteTests
             .WithMessage("O seletor de conteúdo só pode ser usado em fontes do tipo WebHtml.");
         fonte.SeletorConteudo.Should().BeNull();
     }
+
+    [Fact]
+    public void PausarERetomarAgendamento_DeveManterStatusERegistrarAlteracao()
+    {
+        var fonte = new Fonte("Portal", "https://exemplo.com", TipoFonte.Rss, 30, Guid.NewGuid(), "Outro");
+        var usuarioId = Guid.NewGuid();
+
+        fonte.PausarAgendamento(usuarioId);
+
+        fonte.AgendamentoPausado.Should().BeTrue();
+        fonte.Status.Should().Be(StatusFonte.Ativa);
+        fonte.AlteradoPorUsuarioId.Should().Be(usuarioId);
+
+        fonte.RetomarAgendamento(usuarioId);
+        fonte.AgendamentoPausado.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CalcularProximaColeta_DeveSomarPeriodicidadeAUltimaColetaOuACriacao()
+    {
+        var fonte = new Fonte("Portal", "https://exemplo.com", TipoFonte.Rss, 30, Guid.NewGuid(), "Outro");
+        var ultima = new DateTimeOffset(2026, 11, 24, 10, 0, 0, TimeSpan.Zero);
+
+        fonte.CalcularProximaColeta(ultima).Should().Be(ultima.AddMinutes(30));
+        fonte.CalcularProximaColeta(null).Should().Be(fonte.CriadoEm.AddMinutes(30));
+    }
+
+    [Fact]
+    public void CalcularProximaColeta_DeveSerNula_QuandoPausadaOuInativa()
+    {
+        var pausada = new Fonte("Portal", "https://exemplo.com", TipoFonte.Rss, 30, Guid.NewGuid(), "Outro");
+        pausada.PausarAgendamento(Guid.NewGuid());
+        var inativa = new Fonte("Portal", "https://exemplo.com", TipoFonte.Rss, 30, Guid.NewGuid(), "Outro");
+        inativa.Desativar(Guid.NewGuid());
+
+        pausada.CalcularProximaColeta(DateTimeOffset.UtcNow).Should().BeNull();
+        inativa.CalcularProximaColeta(DateTimeOffset.UtcNow).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    public void DeveAlertarFalhas_SomenteAoAtingirOLimite(int falhas, bool esperado) =>
+        Fonte.DeveAlertarFalhas(falhas).Should().Be(esperado);
 }

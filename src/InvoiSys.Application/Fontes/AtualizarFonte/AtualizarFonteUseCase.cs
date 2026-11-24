@@ -62,6 +62,6 @@ public sealed class AtualizarFonteUseCase(
             cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
 
-        return FonteResponse.FromEntity(fonte);
+        return await FonteResponseFactory.CriarAsync(fonteRepository, fonte, cancellationToken);
     }
 }

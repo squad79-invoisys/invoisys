@@ -4,6 +4,7 @@ using InvoiSys.Api.Controllers;
 using InvoiSys.Application.Common.Exceptions;
 using InvoiSys.Application.Common.Responses;
 using InvoiSys.Application.Fontes;
+using InvoiSys.Application.Fontes.AlterarAgendamentoFonte;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
@@ -66,6 +67,7 @@ public sealed class FontesControllerImportarTests
             new NaoUsado(),
             new NaoUsado(),
             new NaoUsado(),
+            new NaoUsado(),
             importar);
 
     private sealed class ImportarFontesUseCaseStub(
@@ -91,7 +93,8 @@ public sealed class FontesControllerImportarTests
         IListarFontesUseCase,
         IObterResumoFontesUseCase,
         IAtualizarFonteUseCase,
-        IAlterarStatusFonteUseCase
+        IAlterarStatusFonteUseCase,
+        IAlterarAgendamentoFonteUseCase
     {
         Task<FonteResponse> ICriarFonteUseCase.ExecutarAsync(
             CriarFonteRequest request, CancellationToken cancellationToken) =>

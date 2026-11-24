@@ -100,6 +100,10 @@ public sealed class ColetaExecutor(
             throw new BusinessException("A fonte precisa estar ativa para realizar a coleta.");
         }
 
+        // O worker já filtra as pausadas; esta checagem cobre a pausa feita entre a listagem e a coleta.
+        if (automatica && fonte.AgendamentoPausado)
+            return null;
+
         if (automatica)
         {
             var ultima = await execucaoRepository.ObterUltimaPorFonteAsync(
@@ -166,6 +170,7 @@ public sealed class ColetaExecutor(
 
             var quantidadeInserida = await documentoRepository.InserirNovosAsync(
                 documentos, cancellationToken);
+            await fonteRepository.ZerarFalhasConsecutivasAsync(fonte.Id, cancellationToken);
             execucao.Concluir(quantidadeInserida);
             if (!automatica)
             {
@@ -202,13 +207,14 @@ public sealed class ColetaExecutor(
 
             if (automatica)
                 await RegistrarFalhaAutomaticaSemMascararAsync(
-                    execucao.Id, fonteId,
+                    execucao.Id, fonte,
                     encerramentoToken.IsCancellationRequested
                         ? "Coleta cancelada pelo encerramento da aplicação."
                         : cancellationToken.IsCancellationRequested &&
                           encerramentoToken.CanBeCanceled
                             ? "Tempo limite da coleta excedido."
-                            : "Coleta cancelada.");
+                            : "Coleta cancelada.",
+                    contarFalha: !encerramentoToken.IsCancellationRequested);
             throw;
         }
         catch (Exception exception)
@@ -224,7 +230,7 @@ public sealed class ColetaExecutor(
             if (automatica)
             {
                 await RegistrarFalhaAutomaticaSemMascararAsync(
-                    execucao.Id, fonteId, exception.Message);
+                    execucao.Id, fonte, exception.Message, contarFalha: true);
             }
             else
             {
@@ -241,6 +247,7 @@ public sealed class ColetaExecutor(
                         fonte.Id,
                         auditCts.Token);
                     await unitOfWork.BeginTransactionAsync(auditCts.Token);
+                    await RegistrarFalhaNaFonteAsync(fonte, exception.Message, auditCts.Token);
                     await unitOfWork.CommitAsync(auditCts.Token);
                     await unitOfWork.CommitTransactionAsync(auditCts.Token);
                 }
@@ -293,9 +300,11 @@ public sealed class ColetaExecutor(
 
     private async Task RegistrarFalhaAutomaticaSemMascararAsync(
         Guid execucaoId,
-        Guid fonteId,
-        string mensagem)
+        Fonte fonte,
+        string mensagem,
+        bool contarFalha)
     {
+        var fonteId = fonte.Id;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
@@ -314,6 +323,8 @@ public sealed class ColetaExecutor(
             await unitOfWork.BeginTransactionAsync(cts.Token);
             try
             {
+                if (contarFalha)
+                    await RegistrarFalhaNaFonteAsync(fonte, mensagem, cts.Token);
                 await unitOfWork.CommitAsync(cts.Token);
                 await unitOfWork.CommitTransactionAsync(cts.Token);
             }
@@ -329,6 +340,34 @@ public sealed class ColetaExecutor(
                 "Falha ao encerrar a execução automática {ExecucaoId}; o worker a recuperará.",
                 execucaoId);
         }
+    }
+
+    /// <summary>
+    /// Soma a falha ao contador da fonte e, ao atingir o limite, registra um alerta
+    /// no histórico. Deve rodar dentro da transação que encerra a execução com falha.
+    /// </summary>
+    private async Task RegistrarFalhaNaFonteAsync(
+        Fonte fonte,
+        string motivo,
+        CancellationToken cancellationToken)
+    {
+        var falhas = await fonteRepository.IncrementarFalhasConsecutivasAsync(
+            fonte.Id, cancellationToken);
+        if (!Fonte.DeveAlertarFalhas(falhas))
+            return;
+
+        logger.LogWarning(
+            "Fonte {FonteId} atingiu {Falhas} falhas consecutivas de coleta. Último motivo: {Motivo}",
+            fonte.Id, falhas, motivo);
+
+        await auditoriaService.RegistrarAsync(
+            TipoEventoAuditoria.Alerta,
+            $"{falhas} falhas consecutivas de coleta: {motivo}",
+            fonte.Nome,
+            fonte.Id,
+            null,
+            AuditoriaService.ResponsavelSistema,
+            cancellationToken);
     }
 
     private async Task RollbackSemMascararAsync(Guid execucaoId)

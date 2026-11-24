@@ -13,6 +13,7 @@ using InvoiSys.Application.Documentos.Anexos;
 using InvoiSys.Application.Documentos.ConsultarDocumento;
 using InvoiSys.Application.Documentos.ListarDocumentos;
 using InvoiSys.Application.Documentos.ObterResumo;
+using InvoiSys.Application.Fontes.AlterarAgendamentoFonte;
 using InvoiSys.Application.Fontes.AlterarStatusFonte;
 using InvoiSys.Application.Fontes.AtualizarFonte;
 using InvoiSys.Application.Fontes.ConsultarFonte;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IObterResumoFontesUseCase, ObterResumoFontesUseCase>();
         services.AddScoped<IAtualizarFonteUseCase, AtualizarFonteUseCase>();
         services.AddScoped<IAlterarStatusFonteUseCase, AlterarStatusFonteUseCase>();
+        services.AddScoped<IAlterarAgendamentoFonteUseCase, AlterarAgendamentoFonteUseCase>();
 
         services.AddScoped<IExecutarColetaManualUseCase, ExecutarColetaManualUseCase>();
         services.AddSingleton<ColetaMetrics>();

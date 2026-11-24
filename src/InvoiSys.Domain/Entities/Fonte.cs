@@ -5,6 +5,11 @@ namespace InvoiSys.Domain.Entities;
 
 public sealed class Fonte
 {
+    /// <summary>
+    /// Quantidade de falhas seguidas de coleta que gera um alerta para a fonte.
+    /// </summary>
+    public const int LimiteFalhasConsecutivasAlerta = 3;
+
     private Fonte()
     {
     }
@@ -54,6 +59,19 @@ public sealed class Fonte
     /// </summary>
     public string? SeletorConteudo { get; private set; }
 
+    /// <summary>
+    /// Quando verdadeiro, o worker deixa de coletar a fonte automaticamente,
+    /// mesmo que ela esteja ativa. A coleta manual continua permitida.
+    /// </summary>
+    public bool AgendamentoPausado { get; private set; }
+
+    /// <summary>
+    /// Falhas de coleta seguidas desde o último sucesso. É mantido pelo
+    /// repositório com atualizações atômicas para não depender do estado
+    /// rastreado em memória após rollbacks.
+    /// </summary>
+    public int FalhasConsecutivas { get; private set; }
+
     public DateTimeOffset CriadoEm { get; private set; }
     public Guid CriadoPorUsuarioId { get; private set; }
     public DateTimeOffset? AlteradoEm { get; private set; }
@@ -94,6 +112,38 @@ public sealed class Fonte
         Status = StatusFonte.Inativa;
         RegistrarAlteracao(usuarioId);
     }
+
+    public void PausarAgendamento(Guid usuarioId)
+    {
+        AgendamentoPausado = true;
+        RegistrarAlteracao(usuarioId);
+    }
+
+    public void RetomarAgendamento(Guid usuarioId)
+    {
+        AgendamentoPausado = false;
+        RegistrarAlteracao(usuarioId);
+    }
+
+    /// <summary>
+    /// Estima a próxima coleta automática com a mesma regra do worker:
+    /// a última execução (ou a criação) somada à periodicidade.
+    /// Retorna nulo quando a fonte não será coletada automaticamente.
+    /// </summary>
+    public DateTimeOffset? CalcularProximaColeta(DateTimeOffset? ultimaColeta)
+    {
+        if (Status != StatusFonte.Ativa || AgendamentoPausado)
+            return null;
+
+        return (ultimaColeta ?? CriadoEm).AddMinutes(PeriodicidadeMinutos);
+    }
+
+    /// <summary>
+    /// Indica se a contagem atual de falhas acabou de atingir o limite.
+    /// O alerta é emitido uma única vez por sequência de falhas.
+    /// </summary>
+    public static bool DeveAlertarFalhas(int falhasConsecutivas) =>
+        falhasConsecutivas == LimiteFalhasConsecutivasAlerta;
 
     private void RegistrarAlteracao(Guid usuarioId)
     {

@@ -15,7 +15,7 @@ public sealed class FonteRepository(
     {
         var candidatas = await dbContext.Fontes
             .AsNoTracking()
-            .Where(fonte => fonte.Status == StatusFonte.Ativa)
+            .Where(fonte => fonte.Status == StatusFonte.Ativa && !fonte.AgendamentoPausado)
             .Select(fonte => new
             {
                 fonte.Id,
@@ -37,6 +37,57 @@ public sealed class FonteRepository(
             .Select(fonte => fonte.Id)
             .ToList();
     }
+
+    public async Task<IReadOnlyDictionary<Guid, DateTimeOffset>> ObterUltimasColetasAsync(
+        IReadOnlyCollection<Guid> fonteIds,
+        CancellationToken cancellationToken)
+    {
+        if (fonteIds.Count == 0)
+            return new Dictionary<Guid, DateTimeOffset>();
+
+        var ids = fonteIds.Distinct().ToList();
+        var ultimas = await dbContext.ExecucoesColeta
+            .AsNoTracking()
+            .Where(execucao => ids.Contains(execucao.FonteId))
+            .GroupBy(execucao => execucao.FonteId)
+            .Select(grupo => new
+            {
+                FonteId = grupo.Key,
+                Ultima = grupo
+                    .OrderByDescending(execucao => execucao.Inicio)
+                    .ThenByDescending(execucao => execucao.Id)
+                    .Select(execucao => execucao.Fim ?? execucao.Inicio)
+                    .First()
+            })
+            .ToListAsync(cancellationToken);
+
+        return ultimas.ToDictionary(item => item.FonteId, item => item.Ultima);
+    }
+
+    public async Task<int> IncrementarFalhasConsecutivasAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken)
+    {
+        await dbContext.Fontes
+            .Where(fonte => fonte.Id == fonteId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                fonte => fonte.FalhasConsecutivas,
+                fonte => fonte.FalhasConsecutivas + 1), cancellationToken);
+
+        return await dbContext.Fontes
+            .AsNoTracking()
+            .Where(fonte => fonte.Id == fonteId)
+            .Select(fonte => fonte.FalhasConsecutivas)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task ZerarFalhasConsecutivasAsync(
+        Guid fonteId,
+        CancellationToken cancellationToken) =>
+        dbContext.Fontes
+            .Where(fonte => fonte.Id == fonteId && fonte.FalhasConsecutivas != 0)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                fonte => fonte.FalhasConsecutivas, 0), cancellationToken);
 
     public Task AdicionarAsync(
         Fonte fonte,
